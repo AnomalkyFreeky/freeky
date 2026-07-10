@@ -16,15 +16,16 @@ FREEKY.manifest = {
     const tile = cat => {
       const isParadox = cat.key === 'anomaly';
       const flickerMsg = isParadox ? FREEKY.manifest.pickInstabilityMessage() : '';
+      const delayStyle = isParadox ? `style="opacity:0; animation:tileDelayedIn .4s ease ${0.3 + Math.random()*0.5}s forwards, tileFlicker 6s ease-in-out ${1 + Math.random()*3}s infinite;"` : '';
       return `
-        <button class="cat-tile ${cat.key===finalKey ? 'match':''}" onclick="FREEKY.manifest.openCategory('${cat.key}')">
+        <button class="cat-tile ${cat.key===finalKey ? 'match':''} ${isParadox?'unstable':''}" ${delayStyle} onclick="FREEKY.manifest.openCategory('${cat.key}')">
           <div class="ct-top">
             <span class="ct-no glitch" data-text="${cat.no}">${cat.no}</span>
             <span class="ct-emoji">${cat.emoji}</span>
             <span class="ct-name ${isParadox?'glitch':''}" ${isParadox?`data-text="${cat.name}"`:''}>${cat.name}</span>
           </div>
           <div class="ct-tagline">${cat.tagline}</div>
-          ${isParadox ? `<div class="ct-instability glitch" data-text="${flickerMsg}">${flickerMsg}</div>` : ''}
+          ${isParadox ? `<div class="ct-instability glitch" id="ct-instability-anomaly" data-text="${flickerMsg}">${flickerMsg}</div>` : ''}
           <div class="ct-enter">ENTER FILE →</div>
         </button>
       `;
@@ -45,6 +46,32 @@ FREEKY.manifest = {
       </div>
     `;
     FREEKY.ui.scheduleGlitchScan();
+    FREEKY.manifest.startInstabilityLoop();
+  },
+
+  // The Paradox entry keeps getting quietly rewritten — never explained, never
+  // acknowledged. Runs only while the Manifest screen is actually visible.
+  startInstabilityLoop(){
+    FREEKY.manifest.stopInstabilityLoop();
+    FREEKY.manifest._instabilityTimer = setInterval(() => {
+      const el = document.getElementById('ct-instability-anomaly');
+      if(!el || !document.getElementById('manifest').classList.contains('active')){
+        FREEKY.manifest.stopInstabilityLoop();
+        return;
+      }
+      const msg = FREEKY.manifest.pickInstabilityMessage();
+      el.textContent = msg;
+      el.dataset.text = msg;
+      el.classList.add('glitching');
+      setTimeout(() => el.classList.remove('glitching'), 180);
+    }, 4000 + Math.random()*3000);
+  },
+
+  stopInstabilityLoop(){
+    if(FREEKY.manifest._instabilityTimer){
+      clearInterval(FREEKY.manifest._instabilityTimer);
+      FREEKY.manifest._instabilityTimer = null;
+    }
   },
 
   openCategory(key){

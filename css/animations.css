@@ -19,6 +19,16 @@
 @keyframes prFadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
 
 .ds-reply, .ds-convo-r{animation:prFadeIn .3s ease;}
+
+/* ===== PARADOX TILE INSTABILITY — subtle, rare, "shouldn't be here" ===== */
+@keyframes tileDelayedIn{from{opacity:0; transform:translateY(3px);} to{opacity:1; transform:translateY(0);}}
+@keyframes tileFlicker{
+  0%, 88%, 100%{opacity:1; transform:translate(0,0);}
+  90%{opacity:.45; transform:translate(-1px,0);}
+  91%{opacity:.9;}
+  93%{opacity:.5; transform:translate(1px,0);}
+  95%{opacity:1; transform:translate(0,0);}
+}
 @keyframes corruptFadeIn{from{opacity:0;} to{opacity:1;}}
 
 /* ===== GLITCH SYSTEM — rare, brief, deliberate ===== */

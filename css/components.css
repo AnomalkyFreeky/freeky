@@ -328,6 +328,12 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
 .ds-note{font-family:var(--narrow); font-style:italic; font-size:14px; color:var(--dim); padding-left:14px; border-left:2px solid var(--line);}
 
 /* ===== ANOMAL-KY // SYSTEM CORRUPTION PROTOCOL ===== */
+.ds-corruption-wrap{display:flex; flex-direction:column;}
+.ds-refresh{
+  align-self:flex-end; background:transparent; border:1px solid var(--line); color:var(--dim);
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em; padding:6px 10px; cursor:pointer; margin-bottom:12px;
+}
+.ds-refresh:hover{border-color:var(--amber); color:var(--amber);}
 .ds-corruption{display:flex; flex-direction:column; gap:10px; min-height:40px;}
 .ds-syslog{font-family:var(--mono); font-size:10px; letter-spacing:.1em; color:var(--red); opacity:.65; transition:opacity .4s ease;}
 .ds-reply{font-family:var(--narrow); font-style:italic; font-size:13px; color:#e0c341; padding-left:14px; border-left:2px solid #e0c341; transition:opacity .4s ease;}

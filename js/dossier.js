@@ -66,7 +66,12 @@ FREEKY.dossier = {
       return `<div class="ds-notes">${sec.notes.map(n => `<div class="ds-note">\u201c${n}\u201d</div>`).join('')}</div>`;
     }
     if(sec.type === 'corruption'){
-      return `<div class="ds-corruption" id="corruption-${sec.no}"></div>`;
+      return `
+        <div class="ds-corruption-wrap">
+          <button class="ds-refresh" onclick="FREEKY.dossier.refreshCorruption('${sec.no}')" title="Reroll (F5)">↻ REFRESH</button>
+          <div class="ds-corruption" id="corruption-${sec.no}"></div>
+        </div>
+      `;
     }
     return '';
   },
@@ -92,6 +97,13 @@ FREEKY.dossier = {
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
+  },
+
+  // Manual reroll — same effect as the "Every page refresh generates a
+  // different combination" rule, without forcing a full browser reload.
+  refreshCorruption(no){
+    const sec = FREEKY.data.dossier.find(s => s.no === no);
+    if(sec && sec.type === 'corruption') FREEKY.dossier.renderCorruptionSequence(sec);
   },
 
   // The archive keeps trying to erase this section; an unidentified process keeps
@@ -163,3 +175,14 @@ FREEKY.dossier = {
     }, delay);
   }
 };
+
+// F5 while the ANOMAL-KY section is open rerolls its content instead of
+// reloading the whole page. Any other time, F5 behaves normally.
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'F5') return;
+  const el = document.getElementById('ds-06');
+  if(el && el.classList.contains('open')){
+    e.preventDefault();
+    FREEKY.dossier.refreshCorruption('06');
+  }
+});

@@ -1,0 +1,44 @@
+/* ==============================================================
+   FREƎ-KY // ANIMATIONS — glitch system + all keyframes
+   --------------------------------------------------------------
+   Occasional, brief, deliberate. Nothing here should run
+   constantly or draw attention to itself — see js/ui.js for the
+   scheduler that triggers these rarely and unpredictably.
+   ============================================================== */
+
+.dot{width:6px; height:6px; border-radius:50%; background:var(--red); display:inline-block; margin-right:6px; box-shadow:0 0 6px var(--red); animation:pulse 1.8s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+.scanbar::after{content:""; position:absolute; top:0; left:-30%; width:30%; height:100%; background:var(--amber); animation:sweep 2.4s linear infinite;}
+@keyframes sweep{0%{left:-30%;}100%{left:100%;}}
+
+.item-panel{animation:decryptIn .35s ease;}
+@keyframes decryptIn{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
+
+.pr-line{opacity:0; animation:prFadeIn .4s ease forwards;}
+@keyframes prFadeIn{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+.ds-reply, .ds-convo-r{animation:prFadeIn .3s ease;}
+@keyframes corruptFadeIn{from{opacity:0;} to{opacity:1;}}
+
+/* ===== GLITCH SYSTEM — rare, brief, deliberate ===== */
+.glitch{position:relative; display:inline-block;}
+.glitch.glitching::before,
+.glitch.glitching::after{
+  content:attr(data-text); position:absolute; left:0; top:0; width:100%; height:100%;
+  overflow:hidden; background:inherit;
+}
+.glitch.glitching::before{color:#c23b4a; clip-path:inset(0 0 55% 0); transform:translate(-2px,-1px); opacity:.75;}
+.glitch.glitching::after{color:#3ba0c2; clip-path:inset(45% 0 0 0); transform:translate(2px,1px); opacity:.75;}
+
+/* hover glitch — small, premium, position-jitter only */
+.btn:hover, .sb-link:hover, .card:hover, .cat-tile:hover, .opt:hover, .size-btn:hover{
+  animation:glitchJitter .3s steps(3) 1;
+}
+@keyframes glitchJitter{
+  0%{transform:translate(0,0);}
+  25%{transform:translate(-1px,1px);}
+  50%{transform:translate(1px,-1px);}
+  75%{transform:translate(-1px,0);}
+  100%{transform:translate(0,0);}
+}

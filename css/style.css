@@ -1,0 +1,104 @@
+/* ==============================================================
+   FREƎ-KY // STYLE — design tokens, reset, layout shell
+   ============================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil:wght@400;700;900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Archivo+Narrow:wght@400;500;600&display=swap');
+
+:root{
+  --void:#0a0a0b;
+  --panel:#151517;
+  --panel-2:#1c1c1e;
+  --line:#2c2c2e;
+  --off:#e9e5db;
+  --dim:#7a7a73;
+  --amber:#c9a227;
+  --red:#9c2020;
+  --mono:'IBM Plex Mono', monospace;
+  --stencil:'Big Shoulders Stencil', sans-serif;
+  --narrow:'Archivo Narrow', sans-serif;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{background:var(--void); color:var(--off); font-family:var(--mono); overflow-x:hidden;}
+body{min-height:100vh; position:relative;}
+::selection{background:var(--amber); color:var(--void);}
+
+/* ===== ATMOSPHERE LAYER ===== */
+.grain{
+  position:fixed; inset:0; pointer-events:none; z-index:999; opacity:.05; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.scanline{
+  position:fixed; inset:0; pointer-events:none; z-index:998;
+  background:repeating-linear-gradient(180deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+}
+.frame-corner{position:fixed; width:22px; height:22px; border:1px solid var(--dim); opacity:.5; z-index:997; pointer-events:none;}
+.fc-tl{top:14px; left:14px; border-right:none; border-bottom:none;}
+.fc-tr{top:14px; right:14px; border-left:none; border-bottom:none;}
+.fc-bl{bottom:14px; left:14px; border-right:none; border-top:none;}
+.fc-br{bottom:14px; right:14px; border-left:none; border-top:none;}
+
+/* ===== TOPBAR ===== */
+.topbar{
+  position:fixed; top:0; left:0; right:0; z-index:900;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:16px 36px; font-size:10px; letter-spacing:.14em; color:var(--dim);
+  border-bottom:1px solid var(--line); background:rgba(10,10,11,.7); backdrop-filter:blur(6px);
+}
+.topbar .logo-row{display:flex; align-items:center; gap:14px;}
+.topbar .logo{color:var(--off); font-family:var(--stencil); font-size:16px; letter-spacing:.08em;}
+.topbar .status{display:flex; gap:18px; align-items:center;}
+.menu-toggle{
+  display:none; background:transparent; border:1px solid var(--line); color:var(--off); font-family:var(--mono);
+  font-size:10px; letter-spacing:.1em; padding:7px 10px; cursor:pointer;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar{
+  position:fixed; top:0; left:0; bottom:0; width:236px; z-index:920;
+  background:var(--panel); border-right:1px solid var(--line);
+  padding:86px 22px 24px; display:flex; flex-direction:column; gap:26px;
+  overflow-y:auto;
+}
+.sb-label{font-size:10px; letter-spacing:.16em; color:var(--dim); margin-bottom:10px; display:block;}
+.sb-nav{display:flex; flex-direction:column; gap:6px;}
+.sb-link{
+  text-align:left; background:transparent; border:1px solid transparent; color:var(--dim); font-family:var(--mono);
+  font-size:12px; letter-spacing:.06em; padding:10px 12px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+  transition:border-color .15s ease, color .15s ease, background .15s ease;
+}
+.sb-link:hover{color:var(--off); border-color:var(--line);}
+.sb-link.on{color:var(--off); background:var(--panel-2); border-color:var(--amber);}
+.sb-link .no{font-size:10px; color:var(--dim);}
+.sb-search input{
+  width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono);
+  font-size:12px; padding:11px 12px; letter-spacing:.03em;
+}
+.sb-search input:focus{outline:none; border-color:var(--amber);}
+.sb-search input::placeholder{color:#5a5a55;}
+.sb-results{display:flex; flex-direction:column; gap:6px; margin-top:12px; max-height:260px; overflow-y:auto;}
+.sb-result{border:1px solid var(--line); background:var(--void); padding:9px 10px; cursor:pointer; font-size:11px;}
+.sb-result:hover{border-color:var(--amber);}
+.sb-result .rn{color:var(--off); display:block; margin-bottom:2px;}
+.sb-result .rf{color:var(--dim); font-size:10px; letter-spacing:.06em;}
+.sb-empty{font-size:11px; color:#4a4a46; font-style:italic;}
+.sb-foot{margin-top:auto; font-size:10px; color:#4a4a46; letter-spacing:.08em; line-height:1.6;}
+
+.main{margin-left:236px;}
+
+/* ===== SCREENS (shared shell) ===== */
+.screen{
+  min-height:100vh; width:100%; display:none; flex-direction:column; align-items:center; justify-content:center;
+  padding:120px 24px 80px; position:relative;
+}
+.screen.active{display:flex;}
+
+/* ===== SHARED TYPOGRAPHY ===== */
+.eyebrow{font-size:11px; letter-spacing:.22em; color:var(--red); margin-bottom:14px; display:flex; align-items:center; gap:8px;}
+.eyebrow::before{content:"▲"; font-size:9px;}
+.headline{
+  font-family:var(--stencil); font-weight:700; font-size:clamp(30px,6vw,52px); line-height:1.05; letter-spacing:.01em; color:var(--off); margin-bottom:18px; text-transform:uppercase;
+}
+.sub{color:var(--dim); font-size:13px; line-height:1.7; max-width:480px; margin-bottom:30px; font-family:var(--narrow);}
+.redact{display:inline-block; background:var(--off); color:var(--off); border-radius:2px; padding:0 4px; user-select:none;}
+.divider{height:1px; background:var(--line); margin:26px 0;}
+.meta-row{display:flex; justify-content:space-between; font-size:10px; color:var(--dim); letter-spacing:.08em; margin-bottom:6px;}
+.meta-row span:last-child{color:var(--off);}

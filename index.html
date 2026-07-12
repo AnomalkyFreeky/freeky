@@ -290,6 +290,9 @@
 <script src="data/dossier.js"></script>
 
 <!-- APPLICATION MODULES (dependency order: storage → state → everything else → app) -->
+<!-- Supabase client — loaded but not yet wired into storage.js (gradual migration in progress) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/state.js"></script>
 <script src="js/ui.js"></script>

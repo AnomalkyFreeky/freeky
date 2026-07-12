@@ -17,6 +17,7 @@ window.FREEKY = window.FREEKY || {};
   if(FREEKY.state.account){
     document.getElementById('accountBadge').textContent = '✓'; // reflect persisted login state
   }
+  FREEKY.account.init(); // restore a real Supabase session, if one exists — no-op until credentials are set
 
   FREEKY.ui.scheduleGlitchScan();
   setTimeout(FREEKY.ui.runAmbientGlitch, 3000);

@@ -87,6 +87,30 @@ namespace (`FREEKY.quiz`, `FREEKY.loadout`, `FREEKY.account`, …), so:
 
 ## Future backend
 
+**Migration in progress:**
+- **STEP 1 (done):** `js/account.js` (Your File) — real Supabase auth (email/password) + `profiles`.
+- **STEP 2 (done):** `js/loadout.js` `deploy()` — when a visitor is logged in
+  and Supabase is configured, submitting Deployment Authorization now writes
+  a real row to `orders` plus one `order_items` row per cart line, matched
+  to `product_variants` via `products.code` (our local product codes like
+  `O-001` are expected to equal `products.code` in Supabase). If the visitor
+  isn't logged in, or a code doesn't match anything yet, deployment still
+  completes locally exactly as before — nothing ever blocks on the backend.
+
+  **Two guessed values to confirm:** `orders.status` and `orders.payment_status`
+  are both set to `'pending'` on creation — the actual enum options weren't in
+  the schema export, so if Supabase rejects the insert, this is the first
+  thing to check (`js/loadout.js`, `writeOrderToSupabase()`).
+
+Fill in `SUPABASE_URL` / `SUPABASE_KEY` in `js/supabase.js` to activate both
+steps. The Loadout/cart itself (before checkout) and the classification
+result are still `localStorage` — gradual migration, one storage call at a
+time, rather than a single flag-day cutover.
+
+If `js/supabase.js` still has placeholder credentials, `js/account.js`
+detects this via `hasSupabase()` and shows a clear in-theme message instead
+of breaking — the rest of the site is completely unaffected either way.
+
 Search the codebase for these comment markers — they're every point a real
 backend would plug in without touching the interface:
 

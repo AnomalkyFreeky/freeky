@@ -67,12 +67,28 @@ FREEKY.loadout = {
     if(badge) badge.textContent = FREEKY.state.cart.length > 0 ? String(FREEKY.state.cart.length) : '—';
   },
 
-  /* ===== DEPLOYMENT AUTHORIZATION (checkout) ===== */
-  deploy(){
+  /* ===== DEPLOYMENT AUTHORIZATION (checkout) =====
+     STEP 2 of the gradual Supabase migration: if the visitor is logged in
+     (real Your File / profiles row) and Supabase is configured, this now
+     writes a real row to `orders` + `order_items`. Otherwise it behaves
+     exactly as before — local-only, nothing breaks.
+
+     ASSUMPTIONS TO CONFIRM (guessed, since the enum values weren't in the
+     schema export — easy to change here if wrong):
+       - orders.status default guessed as 'pending'
+       - orders.payment_status default guessed as 'pending'
+     Product matching: cart items are keyed by our local product code
+     (e.g. "O-001"), matched against products.code in Supabase.
+  */
+  async deploy(){
     const s = FREEKY.state;
     const msg = document.getElementById('deployMsg');
     const agent = (document.getElementById('dAgent').value || '').trim();
     const address = (document.getElementById('dAddress').value || '').trim();
+    const city = (document.getElementById('dCity').value || '').trim();
+    const postal = (document.getElementById('dPostal').value || '').trim();
+    const country = (document.getElementById('dCountry').value || '').trim();
+    const phone = (document.getElementById('dPhone').value || '').trim();
     const email = (document.getElementById('dEmail').value || '').trim();
     const card = (document.getElementById('dCard').value || '').trim();
 
@@ -86,12 +102,93 @@ FREEKY.loadout = {
       msg.className = 'acct-msg err';
       return;
     }
+
+    msg.textContent = 'AUTHORIZING...';
+    msg.className = 'acct-msg';
+
+    if(FREEKY.account.hasSupabase() && FREEKY.account.currentProfile){
+      try{
+        await FREEKY.loadout.writeOrderToSupabase({agent, address, city, postal, country, phone});
+      }catch(e){
+        // Real backend hiccup — deployment still proceeds locally rather than
+        // blocking the visitor. Logged for whoever's debugging the migration.
+        console.error('FREƎ-KY: order write failed, deployment proceeded locally only.', e);
+      }
+    }
+
     s.cart = [];
     FREEKY.storage.set('freeky_loadout', s.cart);
-    s.deploymentsCount += 1; // Deployment history — future DB: append full deployment record, not just a counter
+    s.deploymentsCount += 1; // Deployment history — full record now lives in `orders` when logged in
     FREEKY.storage.set('freeky_deployments', s.deploymentsCount);
     FREEKY.loadout.updateBadge();
     FREEKY.navigation.showScreen('deployed');
     FREEKY.ui.scheduleGlitchScan();
+  },
+
+  async writeOrderToSupabase(dest){
+    const s = FREEKY.state;
+    const profile = FREEKY.account.currentProfile;
+
+    const resolved = [];
+    for(const c of s.cart){
+      const variant = await FREEKY.loadout.findVariant(c);
+      resolved.push({ cartItem: c, variant });
+    }
+
+    const subtotal = resolved.reduce((sum, r) => sum + (r.variant && r.variant.price ? Number(r.variant.price) : 0), 0);
+
+    const { data: order, error: orderError } = await supabaseClient
+      .from('orders')
+      .insert({
+        user_id: profile.user_id,
+        order_number: 'FK-' + Date.now(),
+        status: 'pending',          // guessed enum value — confirm and adjust if needed
+        payment_status: 'pending',  // guessed enum value — confirm and adjust if needed
+        shipping_name: dest.agent,
+        shipping_phone: dest.phone || null,
+        shipping_country: dest.country || null,
+        shipping_city: dest.city || null,
+        shipping_postcode: dest.postal || null,
+        shipping_address_line_1: dest.address,
+        subtotal: subtotal,
+        shipping_cost: 0,
+        discount: 0,
+        tax: 0,
+        total: subtotal
+      })
+      .select()
+      .single();
+
+    if(orderError || !order) return false;
+
+    const rows = resolved
+      .filter(r => r.variant && r.variant.id)
+      .map(r => ({
+        order_id: order.id,
+        product_variant_id: r.variant.id,
+        quantity: 1,
+        unit_price: r.variant.price || 0,
+        line_total: r.variant.price || 0
+      }));
+
+    if(rows.length){
+      await supabaseClient.from('order_items').insert(rows);
+    }
+    return true;
+  },
+
+  // Cart items only carry our local product code (e.g. "O-001"), never a
+  // real Supabase id — resolve it here via products.code. Returns null if
+  // unmatched (e.g. the product hasn't been added to Supabase yet), and the
+  // order still gets created either way, just without that line item linked.
+  async findVariant(cartItem){
+    try{
+      const { data: product } = await supabaseClient
+        .from('products').select('id').eq('code', cartItem.file).single();
+      if(!product) return null;
+      const { data: variant } = await supabaseClient
+        .from('product_variants').select('id, price').eq('product_id', product.id).limit(1).single();
+      return variant || null;
+    }catch(e){ return null; }
   }
 };

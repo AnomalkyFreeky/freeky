@@ -37,6 +37,8 @@ FREEKY.classification = {
     }
 
     FREEKY.storage.set('freeky_classification', s.finalKey); // Future database connection: persist result server-side
+    FREEKY.storage.set('freeky_classification_date', new Date().toISOString());
+    if(FREEKY.personnel) FREEKY.personnel.logIncident('Completed Classification');
 
     if(s.finalKey === 'anomaly'){
       FREEKY.classification.playParadoxReveal();

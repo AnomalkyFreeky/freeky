@@ -52,3 +52,12 @@
   75%{transform:translate(-1px,0);}
   100%{transform:translate(0,0);}
 }
+
+/* ===== YOUR FILE // INTERFACE — real, functional toggles ===== */
+body.pf-no-crt .scanline{ display:none; }
+body.pf-no-glitch .glitch.glitching::before,
+body.pf-no-glitch .glitch.glitching::after{ display:none !important; content:none; }
+body.pf-no-animations *{ animation:none !important; transition:none !important; }
+body.pf-reduced-motion .glitch.glitching::before,
+body.pf-reduced-motion .glitch.glitching::after{ display:none !important; }
+body.pf-reduced-motion .cat-tile.unstable{ animation:none !important; }

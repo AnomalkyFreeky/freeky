@@ -6,6 +6,8 @@ window.FREEKY = window.FREEKY || {};
 FREEKY.manifest = {
 
   renderIndex(){
+    const notes = FREEKY.storage.get('freeky_notes', {});
+    if(!notes.manifest){ notes.manifest = true; FREEKY.storage.set('freeky_notes', notes); }
     const grid = document.getElementById('tileGrid');
     const cats = FREEKY.data.categories;
     const offduty = cats.filter(c=>c.group==='offduty');
@@ -75,6 +77,10 @@ FREEKY.manifest = {
   },
 
   openCategory(key){
+    if(key === 'anomaly'){
+      const notes = FREEKY.storage.get('freeky_notes', {});
+      if(!notes.restricted){ notes.restricted = true; FREEKY.storage.set('freeky_notes', notes); }
+    }
     const cat = FREEKY.data.categories.find(c=>c.key===key);
     const items = FREEKY.data.manifest.filter(m => m.key === key);
     const body = document.getElementById('categoryBody');

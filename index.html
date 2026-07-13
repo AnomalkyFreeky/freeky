@@ -145,7 +145,7 @@
 
 <!-- SCREEN 3B: YOUR FILE (registration / access) -->
 <section class="screen" id="account">
-  <div class="result-wrap">
+  <div class="result-wrap" id="acctGate">
     <button class="back-btn" onclick="FREEKY.navigation.showScreen('gate')">← Back</button>
     <div class="eyebrow">RECORD REGISTRATION</div>
     <h2 class="headline glitch" data-text="Your File." style="font-size:clamp(26px,5vw,40px); margin-bottom:16px;">Your file.</h2>
@@ -161,9 +161,16 @@
       <div id="acctForm"></div>
       <div id="acctMsg" class="acct-msg"></div>
       <button class="btn" style="margin-top:22px;" id="acctSubmit" onclick="FREEKY.account.submit()">Submit →</button>
-
-      <div id="acctStatus" class="acct-status" style="display:none;"></div>
     </div>
+  </div>
+
+  <div class="pf-wrap" id="acctDossier" style="display:none;">
+    <button class="back-btn" onclick="FREEKY.navigation.showScreen('gate')">← Back</button>
+    <div class="eyebrow">CLASSIFIED PERSONNEL DOSSIER</div>
+    <h2 class="headline glitch" data-text="Your File." style="font-size:clamp(26px,5vw,40px); margin-bottom:8px;">Your file.</h2>
+    <p class="sub" style="margin-bottom:26px;">This is not your account. It is the Facility's current interpretation of you.</p>
+    <div id="pfSections"></div>
+    <div style="margin-top:20px;"><button class="btn ghost" onclick="FREEKY.account.logout()">Log Out</button></div>
   </div>
 </section>
 
@@ -288,6 +295,7 @@
 <script src="data/files.js"></script>
 <script src="data/products.js"></script>
 <script src="data/dossier.js"></script>
+<script src="data/personnel-flavor.js"></script>
 
 <!-- APPLICATION MODULES (dependency order: storage → state → everything else → app) -->
 <!-- Supabase client — loaded but not yet wired into storage.js (gradual migration in progress) -->
@@ -305,6 +313,7 @@
 <script src="js/loadout.js"></script>
 <script src="js/account.js"></script>
 <script src="js/dossier.js"></script>
+<script src="js/personnel.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

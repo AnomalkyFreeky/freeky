@@ -85,6 +85,10 @@ FREEKY.dossier = {
 
     // ANOMAL-KY // SYSTEM CORRUPTION PROTOCOL replays its unstable sequence every time it opens
     if(FREEKY.dossier.openSections[no]){
+      if(no === '06'){
+        const notes = FREEKY.storage.get('freeky_notes', {});
+        if(!notes.hidden){ notes.hidden = true; FREEKY.storage.set('freeky_notes', notes); }
+      }
       const sec = FREEKY.data.dossier.find(s => s.no === no);
       if(sec && sec.type === 'corruption') FREEKY.dossier.renderCorruptionSequence(sec);
     }

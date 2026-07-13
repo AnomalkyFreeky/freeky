@@ -121,6 +121,7 @@ FREEKY.loadout = {
     s.deploymentsCount += 1; // Deployment history — full record now lives in `orders` when logged in
     FREEKY.storage.set('freeky_deployments', s.deploymentsCount);
     FREEKY.loadout.updateBadge();
+    if(FREEKY.personnel) FREEKY.personnel.logIncident('Recovered Equipment');
     FREEKY.navigation.showScreen('deployed');
     FREEKY.ui.scheduleGlitchScan();
   },

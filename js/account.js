@@ -78,6 +78,19 @@ FREEKY.account = {
 
   render(){
     const s = FREEKY.state;
+    const gate = document.getElementById('acctGate');
+    const dossier = document.getElementById('acctDossier');
+
+    if(s.account){
+      gate.style.display = 'none';
+      dossier.style.display = 'block';
+      FREEKY.personnel.render();
+      return;
+    }
+
+    gate.style.display = 'block';
+    dossier.style.display = 'none';
+
     const form = document.getElementById('acctForm');
     const msg = document.getElementById('acctMsg');
     if(msg) { msg.textContent=''; msg.className='acct-msg'; }
@@ -94,28 +107,6 @@ FREEKY.account = {
         <div class="acct-field"><label>TRANSMISSION ADDRESS</label><input type="email" id="fEmail" placeholder="you@example.com"></div>
         <div class="acct-field"><label>ACCESS CODE</label><input type="password" id="fCode" placeholder="••••••••"></div>
       `;
-    }
-
-    const status = document.getElementById('acctStatus');
-    if(s.account){
-      const rec = FREEKY.account.getFileRecord();
-      status.style.display = 'block';
-      status.innerHTML = `
-        <span class="as-tag">FILE ACTIVE</span>
-        Logged in as <strong style="color:var(--amber);">${s.account.callsign}</strong>.
-        <div class="file-record">
-          <div class="fr-row"><span>FILE ID</span><span>${rec.fileId}</span></div>
-          <div class="fr-row"><span>STATUS</span><span>${rec.status}</span></div>
-          <div class="fr-row"><span>CLASSIFICATION</span><span>${rec.classification}</span></div>
-          <div class="fr-row"><span>REGISTRATION DATE</span><span>${rec.registrationDate}</span></div>
-          <div class="fr-row"><span>LOADOUT</span><span>${rec.loadout} EQUIPMENT ASSIGNED</span></div>
-          <div class="fr-row"><span>DEPLOYMENTS</span><span>${rec.deployments}</span></div>
-          <div class="fr-row"><span>CLEARANCE LEVEL</span><span>${rec.clearanceLevel}</span></div>
-          <div class="fr-row"><span>ROLE</span><span>${rec.role}</span></div>
-        </div>
-        <div style="margin-top:14px;"><button class="btn ghost" onclick="FREEKY.account.logout()">Log Out</button></div>`;
-    } else {
-      status.style.display = 'none';
     }
   },
 

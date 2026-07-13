@@ -47,10 +47,14 @@ data/
   products.js            equipment manifest, colours, sizes, gallery slides
   dossier.js              the archive: 9 expandable documents (lore, rules,
                           incident reports, recovered notes)
+  personnel-flavor.js      Your File atmospheric text pools (irregularities,
+                           observations, confidence/status lines)
 
 js/
   storage.js            localStorage wrapper + in-memory fallback — the ONE
                          place a future backend gets wired in
+  supabase.js            Supabase client config (SUPABASE_URL/SUPABASE_KEY) —
+                         wrapped in try/catch, degrades safely if unconfigured
   state.js               single shared state object every module reads/writes
   ui.js                  clock, sidebar toggle, glitch scheduler, decline overlay
   navigation.js          screen switching, sidebar active-state, navTo() router
@@ -60,10 +64,19 @@ js/
                            result file rendering
   manifest.js             category index + single-category screen
   products.js              item detail overlay (gallery / colour / size)
-  loadout.js               cart, deployment authorization, deployment confirm
-  account.js                Your File — registration/access (simulated)
-  dossier.js                 renders the archive as independent expand/collapse
-                             documents — each section opens on its own
+  loadout.js               cart, deployment authorization — writes real
+                            `orders`/`order_items` when logged in (see below)
+  account.js                Your File auth — real Supabase signup/login/logout
+                             + `profiles`; toggles between the login gate and
+                             the full personnel dossier
+  personnel.js               the 16-section "Your File" dossier itself (see
+                             below) — identity, classification, recovered
+                             equipment, deployment history, address, account
+                             settings, interface prefs, and the atmospheric
+                             sections, all reading from account.js's session
+  dossier.js                 renders the World Dossier archive as independent
+                             expand/collapse documents (not to be confused
+                             with personnel.js's Your File dossier)
   app.js                    bootstrap — loaded last, wires everything together
 
 database/                empty placeholder for the real backend, whenever it
@@ -101,6 +114,13 @@ namespace (`FREEKY.quiz`, `FREEKY.loadout`, `FREEKY.account`, …), so:
   are both set to `'pending'` on creation — the actual enum options weren't in
   the schema export, so if Supabase rejects the insert, this is the first
   thing to check (`js/loadout.js`, `writeOrderToSupabase()`).
+- **STEP 3 (done):** `js/personnel.js` — the full "Your File" dossier reads
+  real `orders`/`order_items` (Recovered Equipment, Deployment History) and
+  real `addresses` (Deployment Address, editable). **Guessed `addresses`
+  columns** (from the ER diagram screenshot, not a schema export — confirm
+  these match): `user_id, label, full_name, phone, country, postcode, city,
+  address_line_1, address_line_2, is_default`. If saving an address errors,
+  this is the first thing to check.
 
 Fill in `SUPABASE_URL` / `SUPABASE_KEY` in `js/supabase.js` to activate both
 steps. The Loadout/cart itself (before checkout) and the classification

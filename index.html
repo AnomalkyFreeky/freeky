@@ -37,6 +37,7 @@
       <button class="sb-link" id="nav-result" onclick="FREEKY.navigation.navTo('result')"><span>LOADOUT</span><span class="no">—</span></button>
       <button class="sb-link" id="nav-dossier" onclick="FREEKY.navigation.navTo('dossier')"><span class="glitch" data-text="DOSSIER">DOSSIER</span><span class="no">D-00</span></button>
       <button class="sb-link" id="nav-manifest" onclick="FREEKY.navigation.navTo('manifest')"><span>MANIFEST</span><span class="no">MFT</span></button>
+      <button class="sb-link" id="nav-facility" onclick="FREEKY.navigation.navTo('facility')" style="display:none;"><span>FACILITY CONTROL</span><span class="no">FC</span></button>
     </div>
   </div>
   <div class="sb-search">
@@ -174,6 +175,14 @@
   </div>
 </section>
 
+<!-- SCREEN 3B-2: FACILITY CONTROL (internal operator terminal) -->
+<section class="screen" id="facility">
+  <div class="fc-wrap">
+    <button class="back-btn" onclick="FREEKY.navigation.showScreen('gate')">← Back</button>
+    <div id="facilityBody"></div>
+  </div>
+</section>
+
 <!-- SCREEN 3C: DEPLOYMENT AUTHORIZATION (checkout) -->
 <section class="screen" id="deploy">
   <div class="result-wrap">
@@ -296,6 +305,8 @@
 <script src="data/products.js"></script>
 <script src="data/dossier.js"></script>
 <script src="data/personnel-flavor.js"></script>
+<script src="data/roles.js"></script>
+<script src="data/facility-modules.js"></script>
 
 <!-- APPLICATION MODULES (dependency order: storage → state → everything else → app) -->
 <!-- Supabase client — loaded but not yet wired into storage.js (gradual migration in progress) -->
@@ -314,6 +325,7 @@
 <script src="js/account.js"></script>
 <script src="js/dossier.js"></script>
 <script src="js/personnel.js"></script>
+<script src="js/facility.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

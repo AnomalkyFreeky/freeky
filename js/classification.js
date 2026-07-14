@@ -27,12 +27,15 @@ FREEKY.classification = {
     // 3 or 4-way tie: winner stays null — no dominant behavioural pattern, classification fails.
 
     const rareAnomaly = Math.random() < 0.04; // protocol instability — very small hidden probability
+    const paradoxAllowed = FREEKY.storage.get('freeky_feature_flags', {}).paradox !== false; // Facility Control 19 // Feature Flags
 
-    if(!winner || rareAnomaly){
+    if(paradoxAllowed && (!winner || rareAnomaly)){
       s.finalKey = 'anomaly';
       s.finalScore = null;
     } else {
-      s.finalKey = winner;
+      // Paradox disabled from Facility Control: even a 3/4-way tie falls back
+      // to the single highest-scoring division rather than failing.
+      s.finalKey = winner || topKeys[0];
       s.finalScore = top; // 1–5, used only to derive a confidence tier — never shown directly
     }
 

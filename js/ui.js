@@ -31,13 +31,16 @@ FREEKY.ui = {
   },
 
   runAmbientGlitch(){
-    const activeScreen = document.querySelector('.screen.active, .item-overlay.show, .decline-overlay.show') || document;
-    const targets = Array.from(activeScreen.querySelectorAll('.glitch'))
-      .concat(Array.from(document.querySelectorAll('#nav-dossier .glitch, .topbar .glitch')));
-    if(targets.length){
-      const el = targets[Math.floor(Math.random()*targets.length)];
-      el.classList.add('glitching');
-      setTimeout(()=>el.classList.remove('glitching'), 160 + Math.random()*120);
+    const glitchAllowed = FREEKY.storage.get('freeky_feature_flags', {}).glitch !== false; // Facility Control 19 // Feature Flags
+    if(glitchAllowed){
+      const activeScreen = document.querySelector('.screen.active, .item-overlay.show, .decline-overlay.show') || document;
+      const targets = Array.from(activeScreen.querySelectorAll('.glitch'))
+        .concat(Array.from(document.querySelectorAll('#nav-dossier .glitch, .topbar .glitch')));
+      if(targets.length){
+        const el = targets[Math.floor(Math.random()*targets.length)];
+        el.classList.add('glitching');
+        setTimeout(()=>el.classList.remove('glitching'), 160 + Math.random()*120);
+      }
     }
     setTimeout(FREEKY.ui.runAmbientGlitch, 4000 + Math.random()*5000);
   },

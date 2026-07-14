@@ -19,3 +19,8 @@
   .id-block, .file-card{padding:26px 22px;}
   .item-info{padding:26px 22px;}
 }
+
+@media (max-width:760px){
+  .fc-layout{grid-template-columns:1fr;}
+  .fc-nav{flex-direction:row; flex-wrap:wrap;}
+}

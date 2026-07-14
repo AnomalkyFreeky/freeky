@@ -37,6 +37,15 @@ FREEKY.account = {
         if(badge) badge.textContent = '✓';
       }
     }catch(e){ /* not configured yet, or no active session — fine, stay logged out */ }
+    FREEKY.account.updateFacilityLinkVisibility();
+  },
+
+  updateFacilityLinkVisibility(){
+    const facilityLink = document.getElementById('nav-facility');
+    if(!facilityLink) return;
+    const elevated = FREEKY.account.currentProfile && FREEKY.data.roles[FREEKY.account.currentProfile.role]
+      && FREEKY.data.roles[FREEKY.account.currentProfile.role].level >= 20;
+    facilityLink.style.display = elevated ? 'flex' : 'none';
   },
 
   async loadProfile(userId){
@@ -80,6 +89,7 @@ FREEKY.account = {
     const s = FREEKY.state;
     const gate = document.getElementById('acctGate');
     const dossier = document.getElementById('acctDossier');
+    FREEKY.account.updateFacilityLinkVisibility();
 
     if(s.account){
       gate.style.display = 'none';

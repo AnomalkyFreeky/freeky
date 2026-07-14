@@ -19,7 +19,7 @@ FREEKY.navigation = {
     const map = {
       gate:'nav-gate', quiz:'nav-quiz', result:'nav-result', dossier:'nav-dossier',
       manifest:'nav-manifest', category:'nav-manifest', account:'nav-account',
-      deploy:'nav-result', deployed:'nav-result'
+      deploy:'nav-result', deployed:'nav-result', facility:'nav-facility'
     };
     const active = document.getElementById(map[FREEKY.state.currentScreen]);
     if(active) active.classList.add('on');
@@ -52,6 +52,11 @@ FREEKY.navigation = {
     if(id === 'dossier'){
       FREEKY.dossier.render();
       FREEKY.navigation.showScreen('dossier');
+      return;
+    }
+    if(id === 'facility'){
+      FREEKY.facility.render();
+      FREEKY.navigation.showScreen('facility');
       return;
     }
     if(id === 'account'){

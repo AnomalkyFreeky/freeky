@@ -49,6 +49,9 @@ data/
                           incident reports, recovered notes)
   personnel-flavor.js      Your File atmospheric text pools (irregularities,
                            observations, confidence/status lines)
+  roles.js                  Facility Control's 5-tier access hierarchy
+  facility-modules.js        registry of the 22 Facility Control modules
+                             (which are live vs. sealed/scaffold)
 
 js/
   storage.js            localStorage wrapper + in-memory fallback — the ONE
@@ -77,6 +80,8 @@ js/
   dossier.js                 renders the World Dossier archive as independent
                              expand/collapse documents (not to be confused
                              with personnel.js's Your File dossier)
+  facility.js                 Facility Control — the internal operator
+                               terminal (see below), gated by profiles.role
   app.js                    bootstrap — loaded last, wires everything together
 
 database/                empty placeholder for the real backend, whenever it
@@ -150,3 +155,42 @@ In short:
 
 Nothing else changes — every module already reads through `FREEKY.storage`
 and `FREEKY.data`, never around them.
+
+## Facility Control (internal admin terminal)
+
+`js/facility.js`, gated by `profiles.role` via `data/roles.js` (Administrator
+99 / Director 80 / Staff 50 / Moderator 20 / Customer 1). Access is UI-only —
+real security still lives in Supabase RLS. **02 User Database** and
+**05 Deployments** need an admin-bypass policy to see records belonging to
+other users (today's RLS only lets someone see their own row):
+
+```sql
+create policy "Admins can view all profiles"
+on public.profiles for select
+using (exists (select 1 from public.profiles p where p.user_id = auth.uid() and p.role in ('admin','director','staff','moderator')));
+
+create policy "Admins can update all profiles"
+on public.profiles for update
+using (exists (select 1 from public.profiles p where p.user_id = auth.uid() and p.role in ('admin','director')));
+
+create policy "Admins can view all orders"
+on public.orders for select
+using (exists (select 1 from public.profiles p where p.user_id = auth.uid() and p.role in ('admin','director','staff')));
+
+create policy "Admins can update all orders"
+on public.orders for update
+using (exists (select 1 from public.profiles p where p.user_id = auth.uid() and p.role in ('admin','director','staff')));
+```
+
+**Live modules** (real data/actions): 01 Command Center, 02 User Database,
+05 Deployments, 19 Feature Flags (Glitch Effects and Paradox actually gate
+site behaviour — see `js/ui.js` and `js/classification.js`), 20 System Logs
+(local to the browser, no shared table yet), 22 Command Terminal.
+
+**Sealed/scaffold modules** (structure exists, no backend yet): 03, 04, 06–18,
+21 — each renders a "MODULE SEALED" state instead of crashing or faking data.
+
+**Deliberately left disabled, on purpose:** Reset Password / Suspend / Ban /
+Delete Account in User Database. These need Supabase's Admin API with the
+`service_role` key, which must never run in browser code — wire them to a
+server-side function (Edge Function or similar) later, never directly here.

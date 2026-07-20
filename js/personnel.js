@@ -7,6 +7,11 @@
    never touches real data (irregularities, observation, confidence,
    file status — regenerated every time this screen opens).
 
+   Presented as an accordion, same mechanic as the World Dossier
+   (js/dossier.js) — each of the 16 sections opens/closes on its
+   own, collapsed by default, so the page never feels like one
+   long scroll.
+
    ASSUMPTIONS TO CONFIRM (best-effort guesses, safe to correct):
      - orders.status real enum values unknown — mapOrderStatus()
        below guesses common ones; unmapped values just show as-is.
@@ -22,6 +27,27 @@ FREEKY.personnel = {
     crt: true, glitch: true, animations: true, reducedMotion: false, sound: false
   }),
 
+  openSections: {}, // {sectionNo: true/false} — collapsed by default
+
+  sectionMeta: [
+    {no:'01', title:'IDENTITY'},
+    {no:'02', title:'CLASSIFICATION'},
+    {no:'03', title:'RECOVERED EQUIPMENT'},
+    {no:'04', title:'DEPLOYMENT HISTORY'},
+    {no:'05', title:'DEPLOYMENT ADDRESS'},
+    {no:'06', title:'ACCOUNT'},
+    {no:'07', title:'INTERFACE'},
+    {no:'08', title:'ARCHIVE NOTES'},
+    {no:'09', title:'PERSONAL IRREGULARITIES'},
+    {no:'10', title:'OBSERVATION'},
+    {no:'11', title:'SYSTEM CONFIDENCE'},
+    {no:'12', title:'FILE STATUS'},
+    {no:'13', title:'INCIDENT HISTORY'},
+    {no:'14', title:'EMERGENCY CONTACT'},
+    {no:'15', title:'PERMISSIONS'},
+    {no:'16', title:'REPORT YOURSELF'}
+  ],
+
   mapOrderStatus(status){
     const map = {
       pending:"Preparing", processing:"Preparing", confirmed:"Preparing",
@@ -30,6 +56,28 @@ FREEKY.personnel = {
       cancelled:"Archived", refunded:"Archived", archived:"Archived"
     };
     return map[status] || (status ? status.charAt(0).toUpperCase()+status.slice(1) : "Unknown");
+  },
+
+  /* ===== ACCORDION MECHANICS (same pattern as js/dossier.js) ===== */
+  accordionItem(no, title, bodyHtml){
+    const isOpen = !!FREEKY.personnel.openSections[no];
+    return `
+      <div class="pf-section ${isOpen ? 'open' : ''}" id="pfsec-${no}">
+        <button class="pf-head" onclick="FREEKY.personnel.toggleSection('${no}')">
+          <span class="pf-no glitch" data-text="${no}">${no}</span>
+          <span class="pf-title">${title}</span>
+          <span class="pf-toggle-icon">${isOpen ? '−' : '+'}</span>
+        </button>
+        <div class="pf-body" id="pfbody-${no}">${bodyHtml}</div>
+      </div>
+    `;
+  },
+  toggleSection(no){
+    FREEKY.personnel.openSections[no] = !FREEKY.personnel.openSections[no];
+    const el = document.getElementById('pfsec-' + no);
+    if(el) el.classList.toggle('open');
+    const icon = el ? el.querySelector('.pf-toggle-icon') : null;
+    if(icon) icon.textContent = FREEKY.personnel.openSections[no] ? '−' : '+';
   },
 
   /* ===== INCIDENT LOG + ARCHIVE NOTES (real, local, lightweight) ===== */
@@ -51,35 +99,34 @@ FREEKY.personnel = {
     FREEKY.personnel.logIncident('Logged In');
     FREEKY.personnel.applyInterfacePrefs();
 
-    // Kick off the two async data fetches, render everything else immediately,
-    // then fill in 03/04 when the data arrives — no need to block the page.
-    box.innerHTML = [
-      FREEKY.personnel.section01Identity(),
-      FREEKY.personnel.section02Classification(),
-      `<div id="pf-03">${FREEKY.personnel.loadingCard("RECOVERED EQUIPMENT")}</div>`,
-      `<div id="pf-04">${FREEKY.personnel.loadingCard("DEPLOYMENT HISTORY")}</div>`,
-      `<div id="pf-05">${FREEKY.personnel.loadingCard("DEPLOYMENT ADDRESS")}</div>`,
-      FREEKY.personnel.section06Account(),
-      FREEKY.personnel.section07Interface(),
-      FREEKY.personnel.section08ArchiveNotes(),
-      FREEKY.personnel.section09Irregularities(),
-      FREEKY.personnel.section10Observation(),
-      FREEKY.personnel.section11Confidence(),
-      FREEKY.personnel.section12FileStatus(),
-      FREEKY.personnel.section13IncidentHistory(),
-      FREEKY.personnel.section14Emergency(),
-      FREEKY.personnel.section15Permissions(),
-      FREEKY.personnel.section16Report()
-    ].join('');
+    const bodies = {
+      '01': FREEKY.personnel.section01Identity(),
+      '02': FREEKY.personnel.section02Classification(),
+      '03': FREEKY.personnel.loadingBody(),
+      '04': FREEKY.personnel.loadingBody(),
+      '05': FREEKY.personnel.loadingBody(),
+      '06': FREEKY.personnel.section06Account(),
+      '07': FREEKY.personnel.section07Interface(),
+      '08': FREEKY.personnel.section08ArchiveNotes(),
+      '09': FREEKY.personnel.section09Irregularities(),
+      '10': FREEKY.personnel.section10Observation(),
+      '11': FREEKY.personnel.section11Confidence(),
+      '12': FREEKY.personnel.section12FileStatus(),
+      '13': FREEKY.personnel.section13IncidentHistory(),
+      '14': FREEKY.personnel.section14Emergency(),
+      '15': FREEKY.personnel.section15Permissions(),
+      '16': FREEKY.personnel.section16Report()
+    };
+
+    box.innerHTML = FREEKY.personnel.sectionMeta.map(s => FREEKY.personnel.accordionItem(s.no, s.title, bodies[s.no])).join('');
 
     FREEKY.ui.scheduleGlitchScan();
     FREEKY.personnel.loadDeployments();
     FREEKY.personnel.loadAddress();
   },
 
-  loadingCard(title){
-    return `<div class="pf-card"><div class="pf-tag">${title}</div><p class="pf-empty">Reading archive...</p></div>`;
-  },
+  loadingBody(){ return `<p class="pf-empty">Reading archive...</p>`; },
+  emptyBody(msg){ return `<p class="pf-empty">${msg}</p>`; },
 
   /* ===== 01 — IDENTITY (real) ===== */
   section01Identity(){
@@ -87,16 +134,13 @@ FREEKY.personnel = {
     const created = p && p.created_at ? new Date(p.created_at) : null;
     const createdStr = created ? created.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}).toUpperCase() : "--/--/----";
     return `
-      <div class="pf-card">
-        <div class="pf-tag glitch" data-text="01 // IDENTITY">01 // IDENTITY</div>
-        <div class="pf-grid">
-          <div class="pf-cell"><span>DEPLOYMENT ID</span><strong>${p ? (p.registration_number || p.id) : '—'}</strong></div>
-          <div class="pf-cell"><span>USERNAME</span><strong>${p ? p.username : '—'}</strong></div>
-          <div class="pf-cell"><span>CLASSIFICATION</span><strong>${FREEKY.state.finalKey ? FREEKY.state.finalKey.toUpperCase() : 'UNCLASSIFIED'}</strong></div>
-          <div class="pf-cell"><span>STATUS</span><strong>ACTIVE</strong></div>
-          <div class="pf-cell"><span>ARCHIVE ACCESS</span><strong>LEVEL ${p ? String(p.clearance_level).padStart(2,'0') : '01'}</strong></div>
-          <div class="pf-cell"><span>FILE CREATED</span><strong>${createdStr}</strong></div>
-        </div>
+      <div class="pf-grid">
+        <div class="pf-cell"><span>DEPLOYMENT ID</span><strong>${p ? (p.registration_number || p.id) : '—'}</strong></div>
+        <div class="pf-cell"><span>USERNAME</span><strong>${p ? p.username : '—'}</strong></div>
+        <div class="pf-cell"><span>CLASSIFICATION</span><strong>${FREEKY.state.finalKey ? FREEKY.state.finalKey.toUpperCase() : 'UNCLASSIFIED'}</strong></div>
+        <div class="pf-cell"><span>STATUS</span><strong>ACTIVE</strong></div>
+        <div class="pf-cell"><span>ARCHIVE ACCESS</span><strong>LEVEL ${p ? String(p.clearance_level).padStart(2,'0') : '01'}</strong></div>
+        <div class="pf-cell"><span>FILE CREATED</span><strong>${createdStr}</strong></div>
       </div>
     `;
   },
@@ -113,26 +157,23 @@ FREEKY.personnel = {
     const lastDate = FREEKY.storage.get('freeky_classification_date', null);
     const lastStr = lastDate ? new Date(lastDate).toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}).toUpperCase() : "NEVER";
     return `
-      <div class="pf-card">
-        <div class="pf-tag">02 // CLASSIFICATION</div>
-        <div class="pf-grid">
-          <div class="pf-cell"><span>CURRENT CLASSIFICATION</span><strong>${name}</strong></div>
-          <div class="pf-cell"><span>CLASSIFICATION CONFIDENCE</span><strong>${tier}</strong></div>
-          <div class="pf-cell"><span>LAST CLASSIFICATION DATE</span><strong>${lastStr}</strong></div>
-        </div>
-        <button class="btn ghost" style="margin-top:16px;" onclick="FREEKY.personnel.reclassify()">Reclassify</button>
+      <div class="pf-grid">
+        <div class="pf-cell"><span>CURRENT CLASSIFICATION</span><strong>${name}</strong></div>
+        <div class="pf-cell"><span>CLASSIFICATION CONFIDENCE</span><strong>${tier}</strong></div>
+        <div class="pf-cell"><span>LAST CLASSIFICATION DATE</span><strong>${lastStr}</strong></div>
       </div>
+      <button class="btn ghost" style="margin-top:16px;" onclick="FREEKY.personnel.reclassify()">Reclassify</button>
     `;
   },
   reclassify(){ FREEKY.quiz.start(); },
 
   /* ===== 03/04 — RECOVERED EQUIPMENT + DEPLOYMENT HISTORY (real, async) ===== */
   async loadDeployments(){
-    const eqBox = document.getElementById('pf-03');
-    const histBox = document.getElementById('pf-04');
+    const eqBox = document.getElementById('pfbody-03');
+    const histBox = document.getElementById('pfbody-04');
     if(!FREEKY.account.hasSupabase() || !FREEKY.account.currentProfile){
-      if(eqBox) eqBox.innerHTML = FREEKY.personnel.emptyCard("RECOVERED EQUIPMENT", "No equipment on file yet.");
-      if(histBox) histBox.innerHTML = FREEKY.personnel.emptyCard("DEPLOYMENT HISTORY", "No deployments on file yet.");
+      if(eqBox) eqBox.innerHTML = FREEKY.personnel.emptyBody("No equipment on file yet.");
+      if(histBox) histBox.innerHTML = FREEKY.personnel.emptyBody("No deployments on file yet.");
       return;
     }
     try{
@@ -143,12 +184,11 @@ FREEKY.personnel = {
         .order('created_at', { ascending:false });
 
       if(error || !orders){
-        if(eqBox) eqBox.innerHTML = FREEKY.personnel.emptyCard("RECOVERED EQUIPMENT", "Archive unreachable.");
-        if(histBox) histBox.innerHTML = FREEKY.personnel.emptyCard("DEPLOYMENT HISTORY", "Archive unreachable.");
+        if(eqBox) eqBox.innerHTML = FREEKY.personnel.emptyBody("Archive unreachable.");
+        if(histBox) histBox.innerHTML = FREEKY.personnel.emptyBody("Archive unreachable.");
         return;
       }
 
-      // 03 — flatten every item across every order
       const equipment = [];
       orders.forEach(o => {
         (o.order_items || []).forEach(it => {
@@ -164,53 +204,40 @@ FREEKY.personnel = {
 
       if(eqBox){
         eqBox.innerHTML = equipment.length ? `
-          <div class="pf-card">
-            <div class="pf-tag">03 // RECOVERED EQUIPMENT</div>
-            <div class="pf-eq-grid">
-              ${equipment.map(e => `
-                <div class="pf-eq-item">
-                  <div class="pf-eq-code">${e.code}</div>
-                  <div class="pf-eq-name">${e.name}</div>
-                  <div class="pf-eq-row"><span>STATUS</span><span>${e.status}</span></div>
-                  <div class="pf-eq-row"><span>RECOVERED</span><span>${new Date(e.date).toLocaleDateString('en-GB')}</span></div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        ` : FREEKY.personnel.emptyCard("RECOVERED EQUIPMENT", "No equipment on file yet. Visit the Manifest to begin.");
-      }
-
-      // 04 — one row per order
-      if(histBox){
-        histBox.innerHTML = orders.length ? `
-          <div class="pf-card">
-            <div class="pf-tag">04 // DEPLOYMENT HISTORY</div>
-            ${orders.map(o => `
-              <div class="pf-hist-row">
-                <div class="pf-hist-id">${o.order_number}</div>
-                <div class="pf-hist-meta">
-                  <span>${new Date(o.created_at).toLocaleDateString('en-GB')}</span>
-                  <span>${(o.order_items||[]).length} EQUIPMENT</span>
-                  <span class="pf-hist-status">${FREEKY.personnel.mapOrderStatus(o.status)}</span>
-                </div>
+          <div class="pf-eq-grid">
+            ${equipment.map(e => `
+              <div class="pf-eq-item">
+                <div class="pf-eq-code">${e.code}</div>
+                <div class="pf-eq-name">${e.name}</div>
+                <div class="pf-eq-row"><span>STATUS</span><span>${e.status}</span></div>
+                <div class="pf-eq-row"><span>RECOVERED</span><span>${new Date(e.date).toLocaleDateString('en-GB')}</span></div>
               </div>
             `).join('')}
           </div>
-        ` : FREEKY.personnel.emptyCard("DEPLOYMENT HISTORY", "No deployments on file yet.");
+        ` : FREEKY.personnel.emptyBody("No equipment on file yet. Visit the Manifest to begin.");
+      }
+
+      if(histBox){
+        histBox.innerHTML = orders.length ? orders.map(o => `
+          <div class="pf-hist-row">
+            <div class="pf-hist-id">${o.order_number}</div>
+            <div class="pf-hist-meta">
+              <span>${new Date(o.created_at).toLocaleDateString('en-GB')}</span>
+              <span>${(o.order_items||[]).length} EQUIPMENT</span>
+              <span class="pf-hist-status">${FREEKY.personnel.mapOrderStatus(o.status)}</span>
+            </div>
+          </div>
+        `).join('') : FREEKY.personnel.emptyBody("No deployments on file yet.");
       }
     }catch(e){
-      if(eqBox) eqBox.innerHTML = FREEKY.personnel.emptyCard("RECOVERED EQUIPMENT", "Archive unreachable.");
-      if(histBox) histBox.innerHTML = FREEKY.personnel.emptyCard("DEPLOYMENT HISTORY", "Archive unreachable.");
+      if(eqBox) eqBox.innerHTML = FREEKY.personnel.emptyBody("Archive unreachable.");
+      if(histBox) histBox.innerHTML = FREEKY.personnel.emptyBody("Archive unreachable.");
     }
-  },
-
-  emptyCard(title, msg){
-    return `<div class="pf-card"><div class="pf-tag">${title}</div><p class="pf-empty">${msg}</p></div>`;
   },
 
   /* ===== 05 — DEPLOYMENT ADDRESS (real, editable) ===== */
   async loadAddress(){
-    const box = document.getElementById('pf-05');
+    const box = document.getElementById('pfbody-05');
     if(!box) return;
     let addr = null;
     if(FREEKY.account.hasSupabase() && FREEKY.account.currentProfile){
@@ -225,22 +252,19 @@ FREEKY.personnel = {
     }
     FREEKY.personnel._currentAddress = addr;
     box.innerHTML = `
-      <div class="pf-card">
-        <div class="pf-tag">05 // DEPLOYMENT ADDRESS</div>
-        <div class="acct-field"><label>FULL NAME</label><input type="text" id="pfAddrName" value="${addr ? (addr.full_name||'') : ''}"></div>
-        <div class="acct-field"><label>ADDRESS LINE 1</label><input type="text" id="pfAddrLine1" value="${addr ? (addr.address_line_1||'') : ''}"></div>
-        <div class="acct-field"><label>ADDRESS LINE 2</label><input type="text" id="pfAddrLine2" value="${addr ? (addr.address_line_2||'') : ''}"></div>
-        <div style="display:flex; gap:14px;">
-          <div class="acct-field" style="flex:1;"><label>CITY</label><input type="text" id="pfAddrCity" value="${addr ? (addr.city||'') : ''}"></div>
-          <div class="acct-field" style="flex:1;"><label>POSTCODE</label><input type="text" id="pfAddrPostcode" value="${addr ? (addr.postcode||'') : ''}"></div>
-        </div>
-        <div style="display:flex; gap:14px;">
-          <div class="acct-field" style="flex:1;"><label>COUNTRY</label><input type="text" id="pfAddrCountry" value="${addr ? (addr.country||'') : ''}"></div>
-          <div class="acct-field" style="flex:1;"><label>PHONE</label><input type="text" id="pfAddrPhone" value="${addr ? (addr.phone||'') : ''}"></div>
-        </div>
-        <div id="pfAddrMsg" class="acct-msg"></div>
-        <button class="btn ghost" onclick="FREEKY.personnel.saveAddress()">Save Address</button>
+      <div class="acct-field"><label>FULL NAME</label><input type="text" id="pfAddrName" value="${addr ? (addr.full_name||'') : ''}"></div>
+      <div class="acct-field"><label>ADDRESS LINE 1</label><input type="text" id="pfAddrLine1" value="${addr ? (addr.address_line_1||'') : ''}"></div>
+      <div class="acct-field"><label>ADDRESS LINE 2</label><input type="text" id="pfAddrLine2" value="${addr ? (addr.address_line_2||'') : ''}"></div>
+      <div style="display:flex; gap:14px;">
+        <div class="acct-field" style="flex:1;"><label>CITY</label><input type="text" id="pfAddrCity" value="${addr ? (addr.city||'') : ''}"></div>
+        <div class="acct-field" style="flex:1;"><label>POSTCODE</label><input type="text" id="pfAddrPostcode" value="${addr ? (addr.postcode||'') : ''}"></div>
       </div>
+      <div style="display:flex; gap:14px;">
+        <div class="acct-field" style="flex:1;"><label>COUNTRY</label><input type="text" id="pfAddrCountry" value="${addr ? (addr.country||'') : ''}"></div>
+        <div class="acct-field" style="flex:1;"><label>PHONE</label><input type="text" id="pfAddrPhone" value="${addr ? (addr.phone||'') : ''}"></div>
+      </div>
+      <div id="pfAddrMsg" class="acct-msg"></div>
+      <button class="btn ghost" onclick="FREEKY.personnel.saveAddress()">Save Address</button>
     `;
   },
 
@@ -282,25 +306,22 @@ FREEKY.personnel = {
     const p = FREEKY.account.currentProfile;
     const prefs = FREEKY.storage.get('freeky_account_prefs', {language:'EN', newsletter:false});
     return `
-      <div class="pf-card">
-        <div class="pf-tag">06 // ACCOUNT</div>
-        <div class="acct-field"><label>USERNAME</label><input type="text" id="pfUsername" value="${p ? p.username : ''}"></div>
-        <div class="acct-field"><label>NEW EMAIL (leave blank to keep current)</label><input type="email" id="pfEmail" placeholder="new@example.com"></div>
-        <div class="acct-field"><label>NEW ACCESS CODE (leave blank to keep current)</label><input type="password" id="pfPassword" placeholder="••••••••"></div>
-        <div style="display:flex; gap:14px; align-items:flex-end;">
-          <div class="acct-field" style="flex:1;"><label>LANGUAGE</label>
-            <select id="pfLanguage" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">
-              <option value="EN" ${prefs.language==='EN'?'selected':''}>EN</option>
-              <option value="IT" ${prefs.language==='IT'?'selected':''}>IT</option>
-            </select>
-          </div>
-          <div class="acct-field" style="flex:1;">
-            <label><input type="checkbox" id="pfNewsletter" ${prefs.newsletter?'checked':''}> NEWSLETTER</label>
-          </div>
+      <div class="acct-field"><label>USERNAME</label><input type="text" id="pfUsername" value="${p ? p.username : ''}"></div>
+      <div class="acct-field"><label>NEW EMAIL (leave blank to keep current)</label><input type="email" id="pfEmail" placeholder="new@example.com"></div>
+      <div class="acct-field"><label>NEW ACCESS CODE (leave blank to keep current)</label><input type="password" id="pfPassword" placeholder="••••••••"></div>
+      <div style="display:flex; gap:14px; align-items:flex-end;">
+        <div class="acct-field" style="flex:1;"><label>LANGUAGE</label>
+          <select id="pfLanguage" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">
+            <option value="EN" ${prefs.language==='EN'?'selected':''}>EN</option>
+            <option value="IT" ${prefs.language==='IT'?'selected':''}>IT</option>
+          </select>
         </div>
-        <div id="pfAccountMsg" class="acct-msg"></div>
-        <button class="btn ghost" onclick="FREEKY.personnel.saveAccount()">Save Changes</button>
+        <div class="acct-field" style="flex:1;">
+          <label><input type="checkbox" id="pfNewsletter" ${prefs.newsletter?'checked':''}> NEWSLETTER</label>
+        </div>
       </div>
+      <div id="pfAccountMsg" class="acct-msg"></div>
+      <button class="btn ghost" onclick="FREEKY.personnel.saveAccount()">Save Changes</button>
     `;
   },
 
@@ -349,14 +370,11 @@ FREEKY.personnel = {
       </label>
     `;
     return `
-      <div class="pf-card">
-        <div class="pf-tag">07 // INTERFACE</div>
-        ${toggle('crt','CRT Filter')}
-        ${toggle('glitch','Glitch Intensity')}
-        ${toggle('animations','Animations')}
-        ${toggle('reducedMotion','Reduced Motion')}
-        ${toggle('sound','Terminal Sounds')}
-      </div>
+      ${toggle('crt','CRT Filter')}
+      ${toggle('glitch','Glitch Intensity')}
+      ${toggle('animations','Animations')}
+      ${toggle('reducedMotion','Reduced Motion')}
+      ${toggle('sound','Terminal Sounds')}
     `;
   },
   setInterfacePref(key, value){
@@ -396,12 +414,7 @@ FREEKY.personnel = {
       {key:'restricted', label:'Viewed Restricted Record', test: () => !!notes.restricted},
       {key:'hidden', label:'Discovered Hidden File', test: () => !!notes.hidden}
     ];
-    return `
-      <div class="pf-card">
-        <div class="pf-tag">08 // ARCHIVE NOTES</div>
-        ${defs.map(d => `<div class="pf-note ${d.test() ? 'unlocked' : ''}">${d.test() ? '✓' : '○'} ${d.label}</div>`).join('')}
-      </div>
-    `;
+    return defs.map(d => `<div class="pf-note ${d.test() ? 'unlocked' : ''}">${d.test() ? '✓' : '○'} ${d.label}</div>`).join('');
   },
 
   /* ===== 09-12 — atmospheric, randomized every render ===== */
@@ -409,52 +422,36 @@ FREEKY.personnel = {
     const pool = FREEKY.data.personnelFlavor.irregularities;
     const count = 2 + Math.floor(Math.random()*3);
     const picks = FREEKY.dossier.shuffle(pool).slice(0, count);
-    return `
-      <div class="pf-card">
-        <div class="pf-tag">09 // PERSONAL IRREGULARITIES</div>
-        ${picks.map(p => `<div class="pf-irregularity glitch" data-text="${p}">— ${p}</div>`).join('')}
-      </div>
-    `;
+    return picks.map(p => `<div class="pf-irregularity glitch" data-text="${p}">— ${p}</div>`).join('');
   },
   section10Observation(){
     const pool = FREEKY.data.personnelFlavor.observations;
     const pick = pool[Math.floor(Math.random()*pool.length)];
-    return `<div class="pf-card"><div class="pf-tag">10 // OBSERVATION</div><p class="pf-obs glitch" data-text="${pick}">${pick}</p></div>`;
+    return `<p class="pf-obs glitch" data-text="${pick}">${pick}</p>`;
   },
   section11Confidence(){
     const pct = 60 + Math.floor(Math.random()*39);
     const pool = FREEKY.data.personnelFlavor.confidenceEndings;
     const pick = pool[Math.floor(Math.random()*pool.length)];
-    return `
-      <div class="pf-card">
-        <div class="pf-tag">11 // SYSTEM CONFIDENCE</div>
-        <div class="pf-confidence">${pct}%</div>
-        <p class="pf-obs">${pick}</p>
-      </div>
-    `;
+    return `<div class="pf-confidence">${pct}%</div><p class="pf-obs">${pick}</p>`;
   },
   section12FileStatus(){
     const pool = FREEKY.data.personnelFlavor.fileStatuses;
     const pick = pool[Math.floor(Math.random()*pool.length)];
-    return `<div class="pf-card"><div class="pf-tag">12 // FILE STATUS</div><p class="pf-obs">${pick}</p></div>`;
+    return `<p class="pf-obs">${pick}</p>`;
   },
 
   /* ===== 13 — INCIDENT HISTORY (real log) ===== */
   section13IncidentHistory(){
     const log = FREEKY.storage.get('freeky_incidents', []);
-    return `
-      <div class="pf-card">
-        <div class="pf-tag">13 // INCIDENT HISTORY</div>
-        ${log.length ? log.slice(0,8).map(i => `
-          <div class="pf-incident"><span>${i.text}</span><span>${new Date(i.date).toLocaleDateString('en-GB')}</span></div>
-        `).join('') : '<p class="pf-empty">No recorded activity yet.</p>'}
-      </div>
-    `;
+    return log.length ? log.slice(0,8).map(i => `
+      <div class="pf-incident"><span>${i.text}</span><span>${new Date(i.date).toLocaleDateString('en-GB')}</span></div>
+    `).join('') : '<p class="pf-empty">No recorded activity yet.</p>';
   },
 
   /* ===== 14 — EMERGENCY CONTACT (static) ===== */
   section14Emergency(){
-    return `<div class="pf-card"><div class="pf-tag">14 // EMERGENCY CONTACT</div><div class="pf-eq-row"><span>EMERGENCY CONTACT</span><span>OUTSIDE</span></div><div class="pf-eq-row"><span></span><span>UNAVAILABLE.</span></div></div>`;
+    return `<div class="pf-eq-row"><span>EMERGENCY CONTACT</span><span>OUTSIDE</span></div><div class="pf-eq-row"><span></span><span>UNAVAILABLE.</span></div>`;
   },
 
   /* ===== 15 — PERMISSIONS (static checklist) ===== */
@@ -464,22 +461,14 @@ FREEKY.personnel = {
       {label:'Modify File', ok:true}, {label:'Continue Existing', ok:true},
       {label:'Understand Everything', ok:false}
     ];
-    return `
-      <div class="pf-card">
-        <div class="pf-tag">15 // PERMISSIONS</div>
-        ${items.map(i => `<div class="pf-permission ${i.ok?'ok':'no'}">${i.ok?'✓':'✗'} ${i.label}</div>`).join('')}
-      </div>
-    `;
+    return items.map(i => `<div class="pf-permission ${i.ok?'ok':'no'}">${i.ok?'✓':'✗'} ${i.label}</div>`).join('');
   },
 
   /* ===== 16 — REPORT YOURSELF ===== */
   section16Report(){
     return `
-      <div class="pf-card">
-        <div class="pf-tag">16 // REPORT YOURSELF</div>
-        <button class="btn ghost" onclick="FREEKY.personnel.reportYourself()">Report Yourself</button>
-        <p class="pf-obs" id="pfReportMsg" style="margin-top:10px;"></p>
-      </div>
+      <button class="btn ghost" onclick="FREEKY.personnel.reportYourself()">Report Yourself</button>
+      <p class="pf-obs" id="pfReportMsg" style="margin-top:10px;"></p>
     `;
   },
   reportYourself(){

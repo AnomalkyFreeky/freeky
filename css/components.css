@@ -346,10 +346,19 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
 .ds-corruption.purged .ds-syslog,
 .ds-corruption.purged .ds-output{opacity:.15;}
 
-/* ===== YOUR FILE — classified personnel dossier ===== */
+/* ===== YOUR FILE — classified personnel dossier (accordion) ===== */
 .pf-wrap{max-width:720px; width:100%;}
-.pf-card{border:1px solid var(--line); background:var(--panel); padding:26px 28px; margin-bottom:16px; position:relative;}
-.pf-tag{font-size:11px; letter-spacing:.14em; color:var(--amber); margin-bottom:16px; display:block;}
+.pf-section{border:1px solid var(--line); background:var(--panel); margin-bottom:10px;}
+.pf-section.open{border-color:var(--amber);}
+.pf-head{
+  width:100%; background:transparent; border:none; cursor:pointer; text-align:left;
+  display:flex; align-items:center; gap:16px; padding:16px 20px; color:var(--off); font-family:var(--mono);
+}
+.pf-no{font-family:var(--stencil); font-size:14px; color:var(--dim); min-width:20px;}
+.pf-title{flex:1; font-size:13px; letter-spacing:.06em;}
+.pf-toggle-icon{font-family:var(--stencil); font-size:18px; color:var(--amber); width:16px; text-align:center;}
+.pf-body{max-height:0; overflow:hidden; transition:max-height .35s ease; padding:0 20px;}
+.pf-section.open .pf-body{max-height:900px; padding:0 20px 22px;}
 .pf-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;}
 .pf-cell{border:1px solid var(--line); background:var(--panel-2); padding:10px 14px;}
 .pf-cell span{display:block; font-size:9px; letter-spacing:.12em; color:var(--dim); margin-bottom:4px;}

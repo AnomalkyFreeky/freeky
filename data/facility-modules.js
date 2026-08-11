@@ -25,7 +25,7 @@ FREEKY.data.facilityModules = [
   {id:'randomctl',    no:'13', name:'Random Content',    minLevel:80, status:'scaffold'},
   {id:'email',        no:'14', name:'Email Center',      minLevel:50, status:'scaffold'},
   {id:'shipping',     no:'15', name:'Shipping',          minLevel:50, status:'scaffold'},
-  {id:'analytics',    no:'16', name:'Analytics',         minLevel:50, status:'scaffold'},
+  {id:'analytics',    no:'16', name:'Analytics',         minLevel:50, status:'live'},
   {id:'database',     no:'17', name:'Database',          minLevel:99, status:'scaffold'},
   {id:'media',        no:'18', name:'Media Library',     minLevel:50, status:'scaffold'},
   {id:'flags',        no:'19', name:'Feature Flags',     minLevel:99, status:'live'},

@@ -119,6 +119,7 @@ FREEKY.facility = {
       inventory: FREEKY.facility.moduleInventory,
       deployments: FREEKY.facility.moduleDeployments,
       drops: FREEKY.facility.moduleDrops,
+      analytics: FREEKY.facility.moduleAnalytics,
       flags: FREEKY.facility.moduleFlags,
       logs: FREEKY.facility.moduleLogs,
       terminal: FREEKY.facility.moduleTerminal
@@ -643,6 +644,99 @@ FREEKY.facility = {
     }catch(e){
       msg.textContent = (e.message || 'COULD NOT REACH ARCHIVE').toUpperCase(); msg.className = 'acct-msg err';
     }
+  },
+
+  /* ===== 16 — ANALYTICS (live, client-side aggregation) ===== */
+  async moduleAnalytics(content){
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">16 // ANALYTICS</div><p class="pf-empty">Reading archive...</p></div>`;
+    if(!FREEKY.account.hasSupabase()){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">16 // ANALYTICS</div><p class="pf-empty">Database not configured.</p></div>`;
+      return;
+    }
+    try{
+      const [{ data: orders, error: ordersErr }, { data: items, error: itemsErr }] = await Promise.all([
+        supabaseClient.from('orders').select('id, total, status, created_at').order('created_at', {ascending:true}),
+        supabaseClient.from('order_items').select('quantity, line_total, product_variants(products(name, category))')
+      ]);
+      if(ordersErr) throw ordersErr;
+      FREEKY.facility.renderAnalytics(content, orders || [], items || [], itemsErr);
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">16 // ANALYTICS</div><p class="pf-empty">Archive unreachable.</p></div>`;
+    }
+  },
+
+  renderAnalytics(content, orders, items, itemsErr){
+    const totalRevenue = orders.reduce((s,o) => s + (Number(o.total)||0), 0);
+    const orderCount = orders.length;
+    const avgOrder = orderCount ? (totalRevenue / orderCount) : 0;
+
+    // revenue by month, last 6 months present in the data
+    const byMonth = {};
+    orders.forEach(o => {
+      const d = new Date(o.created_at);
+      const key = d.toLocaleDateString('en-GB', {month:'short', year:'2-digit'});
+      byMonth[key] = (byMonth[key]||0) + (Number(o.total)||0);
+    });
+    const monthKeys = Object.keys(byMonth);
+    const maxMonth = Math.max(1, ...monthKeys.map(k=>byMonth[k]));
+
+    // orders by status
+    const byStatus = {};
+    orders.forEach(o => { byStatus[o.status] = (byStatus[o.status]||0) + 1; });
+
+    // top products by units sold
+    const byProduct = {};
+    (items||[]).forEach(it => {
+      const p = it.product_variants && it.product_variants.products;
+      const name = p ? p.name : 'Unknown';
+      byProduct[name] = (byProduct[name]||0) + (Number(it.quantity)||0);
+    });
+    const topProducts = Object.entries(byProduct).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const maxProduct = Math.max(1, ...topProducts.map(p=>p[1]));
+
+    content.innerHTML = `
+      <div class="fc-module">
+        <div class="fc-module-tag">16 // ANALYTICS</div>
+        <div class="pf-grid" style="margin-bottom:24px;">
+          <div class="pf-cell"><span>TOTAL REVENUE</span><strong>£${totalRevenue.toFixed(2)}</strong></div>
+          <div class="pf-cell"><span>TOTAL DEPLOYMENTS</span><strong>${orderCount}</strong></div>
+          <div class="pf-cell"><span>AVERAGE ORDER VALUE</span><strong>£${avgOrder.toFixed(2)}</strong></div>
+        </div>
+
+        <div class="fc-module-tag">REVENUE BY MONTH</div>
+        <div style="margin-bottom:22px;">
+          ${monthKeys.length ? monthKeys.map(k => `
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+              <span style="width:60px; font-size:11px; color:var(--dim);">${k}</span>
+              <div style="flex:1; background:var(--panel-2); height:14px; position:relative;">
+                <div style="width:${(byMonth[k]/maxMonth*100).toFixed(1)}%; background:var(--amber); height:100%;"></div>
+              </div>
+              <span style="width:70px; font-size:11px; text-align:right;">£${byMonth[k].toFixed(2)}</span>
+            </div>
+          `).join('') : '<p class="pf-empty">No deployments on record.</p>'}
+        </div>
+
+        <div class="fc-module-tag">DEPLOYMENTS BY STATUS</div>
+        <div class="pf-grid" style="margin-bottom:22px;">
+          ${Object.keys(byStatus).length ? Object.entries(byStatus).map(([s,c]) => `
+            <div class="pf-cell"><span>${s.toUpperCase()}</span><strong>${c}</strong></div>
+          `).join('') : '<p class="pf-empty">No deployments on record.</p>'}
+        </div>
+
+        <div class="fc-module-tag">TOP EQUIPMENT (BY UNITS ISSUED)</div>
+        <div>
+          ${topProducts.length ? topProducts.map(([name,qty]) => `
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+              <span style="width:160px; font-size:11px; color:var(--off);">${name}</span>
+              <div style="flex:1; background:var(--panel-2); height:14px; position:relative;">
+                <div style="width:${(qty/maxProduct*100).toFixed(1)}%; background:var(--amber); height:100%;"></div>
+              </div>
+              <span style="width:40px; font-size:11px; text-align:right;">${qty}</span>
+            </div>
+          `).join('') : `<p class="pf-empty">${itemsErr ? 'Order item data unreachable.' : 'No units issued yet.'}</p>`}
+        </div>
+      </div>
+    `;
   },
 
   /* ===== 19 — FEATURE FLAGS (live, actually gate real systems) ===== */

@@ -422,6 +422,14 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
   font-family:var(--mono); font-size:12px; color:var(--dim); margin-bottom:12px;
 }
 .fc-term-output div{padding:2px 0;}
+.fc-stock-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:18px;}
+.fc-stock-cell{border:1px solid var(--line); background:var(--panel-2); padding:10px 12px;}
+.fc-stock-cell span{display:block; font-size:9px; letter-spacing:.08em; color:var(--dim); margin-bottom:6px;}
+.fc-stock-input{
+  width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono);
+  font-size:13px; padding:8px 10px;
+}
+.fc-stock-input:focus{outline:none; border-color:var(--amber);}
 .fc-term-input{
   width:100%; background:var(--void); border:1px solid var(--amber); color:var(--off); font-family:var(--mono);
   font-size:13px; padding:12px 14px;

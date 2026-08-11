@@ -17,6 +17,10 @@ FREEKY.facility = {
   activeModule: 'command',
   usersCache: [],
   ordersCache: [],
+  productsCache: [],
+  dropsCache: [],
+  colorsCache: [],
+  sizesCache: [],
 
   currentLevel(){
     const p = FREEKY.account.currentProfile;
@@ -111,7 +115,10 @@ FREEKY.facility = {
     const renderers = {
       command: FREEKY.facility.moduleCommand,
       users: FREEKY.facility.moduleUsers,
+      products: FREEKY.facility.moduleProducts,
+      inventory: FREEKY.facility.moduleInventory,
       deployments: FREEKY.facility.moduleDeployments,
+      drops: FREEKY.facility.moduleDrops,
       flags: FREEKY.facility.moduleFlags,
       logs: FREEKY.facility.moduleLogs,
       terminal: FREEKY.facility.moduleTerminal
@@ -253,6 +260,230 @@ FREEKY.facility = {
     }
   },
 
+  /* ===== 03 — PRODUCT CONTROL (live) ===== */
+  async moduleProducts(content){
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">03 // PRODUCT CONTROL</div><p class="pf-empty">Reading archive...</p></div>`;
+    if(!FREEKY.account.hasSupabase()){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">03 // PRODUCT CONTROL</div><p class="pf-empty">Database not configured.</p></div>`;
+      return;
+    }
+    try{
+      const [{ data: products, error }, { data: drops }] = await Promise.all([
+        supabaseClient.from('products').select('*').order('code', {ascending:true}),
+        supabaseClient.from('drops').select('*').order('drop_number', {ascending:true})
+      ]);
+      if(error) throw error;
+      FREEKY.facility.productsCache = products || [];
+      FREEKY.facility.dropsCache = drops || [];
+      FREEKY.facility.renderProductsList(content, '');
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">03 // PRODUCT CONTROL</div><p class="pf-empty">Archive unreachable.</p></div>`;
+    }
+  },
+
+  renderProductsList(content, filter){
+    const drops = FREEKY.facility.dropsCache;
+    const dropName = id => (drops.find(d=>d.id===id) || {}).name || '—';
+    const rows = FREEKY.facility.productsCache.filter(p =>
+      !filter || (p.name||'').toLowerCase().includes(filter.toLowerCase()) || (p.code||'').toLowerCase().includes(filter.toLowerCase())
+    );
+    content.innerHTML = `
+      <div class="fc-module">
+        <div class="fc-module-tag">03 // PRODUCT CONTROL</div>
+        <div class="btn-row" style="margin-bottom:14px;">
+          <input type="text" class="fc-search" style="flex:1;" placeholder="Search name or code..." value="${filter}"
+            oninput="FREEKY.facility.renderProductsList(document.getElementById('fcContent'), this.value)">
+          <button class="btn ghost" onclick="FREEKY.facility.openProductFile(null)">+ New Product</button>
+        </div>
+        ${rows.length ? rows.map(p => `
+          <div class="fc-user-row">
+            <div>
+              <div class="fc-user-name">${p.name}</div>
+              <div class="pf-empty">${p.code} · ${(p.category||'').toUpperCase()} · £${Number(p.price||0).toFixed(2)} · ${p.status==='available'?'AVAILABLE':'SEALED'} · ${p.active?'ACTIVE':'INACTIVE'} · ${dropName(p.drop_id)}</div>
+            </div>
+            <button class="btn ghost" onclick="FREEKY.facility.openProductFile('${p.id}')">Open File</button>
+          </div>
+        `).join('') : '<p class="pf-empty">No matching records.</p>'}
+      </div>
+    `;
+  },
+
+  openProductFile(id){
+    const p = id ? FREEKY.facility.productsCache.find(x => x.id === id) : null;
+    const drops = FREEKY.facility.dropsCache;
+    const cats = FREEKY.data.categories;
+    const content = document.getElementById('fcContent');
+    content.innerHTML = `
+      <div class="fc-module">
+        <button class="back-btn" onclick="FREEKY.facility.renderProductsList(document.getElementById('fcContent'), '')">← Back to Product Control</button>
+        <div class="fc-module-tag">${p ? 'FILE // ' + p.name : 'NEW PRODUCT FILE'}</div>
+        <div class="acct-field"><label>NAME</label><input type="text" id="fcPName" value="${p ? p.name.replace(/"/g,'&quot;') : ''}"></div>
+        <div class="acct-field"><label>CODE (must match the manifest file code — used to link the loadout to this record)</label><input type="text" id="fcPCode" value="${p ? p.code||'' : ''}" placeholder="e.g. O-002"></div>
+        <div class="acct-field"><label>CATEGORY / DIVISION</label>
+          <select id="fcPCategory" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">
+            ${cats.map(c => `<option value="${c.key}" ${p && p.category===c.key?'selected':''}>${c.name.toUpperCase()}</option>`).join('')}
+          </select>
+        </div>
+        <div class="acct-field"><label>PRICE (£)</label><input type="number" step="0.01" id="fcPPrice" value="${p ? p.price : ''}"></div>
+        <div class="acct-field"><label>STATUS</label>
+          <select id="fcPStatus" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">
+            <option value="available" ${p && p.status==='available'?'selected':''}>AVAILABLE</option>
+            <option value="sealed" ${!p || p.status==='sealed'?'selected':''}>SEALED</option>
+          </select>
+        </div>
+        <div class="acct-field"><label>DROP</label>
+          <select id="fcPDrop" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">
+            <option value="">— NONE —</option>
+            ${drops.map(d => `<option value="${d.id}" ${p && p.drop_id===d.id?'selected':''}>${d.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="acct-field"><label>SHORT DESCRIPTION</label><input type="text" id="fcPShort" value="${p ? (p.short_description||'').replace(/"/g,'&quot;') : ''}"></div>
+        <div class="acct-field"><label>DESCRIPTION</label>
+          <textarea id="fcPDesc" rows="4" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">${p ? p.description||'' : ''}</textarea>
+        </div>
+        <label class="pf-toggle"><input type="checkbox" id="fcPActive" ${!p || p.active?'checked':''}><span>Active (visible on site)</span></label>
+        <label class="pf-toggle"><input type="checkbox" id="fcPFeatured" ${p && p.featured?'checked':''}><span>Featured</span></label>
+        <div id="fcPMsg" class="acct-msg"></div>
+        <div class="btn-row">
+          <button class="btn" onclick="FREEKY.facility.saveProductFile(${p ? `'${p.id}'` : 'null'})">Save Changes</button>
+        </div>
+      </div>
+    `;
+  },
+
+  async saveProductFile(id){
+    const msg = document.getElementById('fcPMsg');
+    const payload = {
+      name: document.getElementById('fcPName').value.trim(),
+      code: document.getElementById('fcPCode').value.trim(),
+      category: document.getElementById('fcPCategory').value,
+      price: parseFloat(document.getElementById('fcPPrice').value) || 0,
+      status: document.getElementById('fcPStatus').value,
+      drop_id: document.getElementById('fcPDrop').value || null,
+      short_description: document.getElementById('fcPShort').value.trim(),
+      description: document.getElementById('fcPDesc').value.trim(),
+      active: document.getElementById('fcPActive').checked,
+      featured: document.getElementById('fcPFeatured').checked
+    };
+    if(!payload.name || !payload.code){
+      msg.textContent = 'NAME AND CODE ARE REQUIRED.'; msg.className = 'acct-msg err'; return;
+    }
+    try{
+      if(id){
+        const { error } = await supabaseClient.from('products').update(payload).eq('id', id);
+        if(error) throw error;
+        const p = FREEKY.facility.productsCache.find(x=>x.id===id);
+        if(p) Object.assign(p, payload);
+        FREEKY.facility.logAction('Edited product: ' + payload.name);
+      } else {
+        payload.slug = payload.name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+        const { data, error } = await supabaseClient.from('products').insert(payload).select().single();
+        if(error) throw error;
+        FREEKY.facility.productsCache.unshift(data);
+        FREEKY.facility.logAction('Created product: ' + payload.name);
+      }
+      msg.textContent = 'FILE SAVED.'; msg.className = 'acct-msg ok';
+      setTimeout(() => FREEKY.facility.renderProductsList(document.getElementById('fcContent'), ''), 500);
+    }catch(e){
+      msg.textContent = (e.message || 'COULD NOT REACH ARCHIVE').toUpperCase(); msg.className = 'acct-msg err';
+    }
+  },
+
+  /* ===== 04 — INVENTORY (live, stock management) ===== */
+  async moduleInventory(content){
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Reading archive...</p></div>`;
+    if(!FREEKY.account.hasSupabase()){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Database not configured.</p></div>`;
+      return;
+    }
+    try{
+      const { data, error } = await supabaseClient
+        .from('products')
+        .select('id, name, code, status, product_variants(stock)')
+        .order('code', {ascending:true});
+      if(error) throw error;
+      FREEKY.facility.productsCache = data || [];
+      FREEKY.facility.renderInventoryList(content);
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Archive unreachable.</p></div>`;
+    }
+  },
+
+  renderInventoryList(content){
+    content.innerHTML = `
+      <div class="fc-module">
+        <div class="fc-module-tag">04 // INVENTORY</div>
+        ${FREEKY.facility.productsCache.map(p => {
+          const variants = p.product_variants || [];
+          const total = variants.reduce((s,v)=>s+(Number(v.stock)||0), 0);
+          const low = variants.some(v => Number(v.stock) <= 5);
+          return `
+            <div class="fc-user-row">
+              <div>
+                <div class="fc-user-name">${p.name}</div>
+                <div class="pf-empty">${p.code} · ${variants.length} variant(s) · TOTAL STOCK ${total}${low ? ' · <span style="color:var(--red);">LOW STOCK</span>' : ''}</div>
+              </div>
+              <button class="btn ghost" onclick="FREEKY.facility.openInventoryGrid('${p.id}')">Manage Stock</button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  },
+
+  async openInventoryGrid(productId){
+    const content = document.getElementById('fcContent');
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Reading variants...</p></div>`;
+    try{
+      const { data, error } = await supabaseClient
+        .from('product_variants')
+        .select('id, stock, sizes(name, sort_order), colors(name)')
+        .eq('product_id', productId);
+      if(error) throw error;
+      const variants = (data || []).sort((a,b) => {
+        const so = (a.sizes ? a.sizes.sort_order : 0) - (b.sizes ? b.sizes.sort_order : 0);
+        if(so !== 0) return so;
+        return (a.colors ? a.colors.name : '').localeCompare(b.colors ? b.colors.name : '');
+      });
+      const p = FREEKY.facility.productsCache.find(x => x.id === productId);
+      content.innerHTML = `
+        <div class="fc-module">
+          <button class="back-btn" onclick="FREEKY.facility.renderInventoryList(document.getElementById('fcContent'))">← Back to Inventory</button>
+          <div class="fc-module-tag">STOCK // ${p ? p.name : ''}</div>
+          <div class="fc-stock-grid">
+            ${variants.map(v => `
+              <div class="fc-stock-cell">
+                <span>${v.sizes ? v.sizes.name : '—'} · ${v.colors ? v.colors.name : '—'}</span>
+                <input type="number" min="0" class="fc-stock-input" data-variant-id="${v.id}" value="${v.stock}">
+              </div>
+            `).join('')}
+          </div>
+          <div id="fcInvMsg" class="acct-msg"></div>
+          <div class="btn-row">
+            <button class="btn" onclick="FREEKY.facility.saveInventoryGrid('${productId}')">Save Stock Levels</button>
+          </div>
+        </div>
+      `;
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Could not load variants.</p></div>`;
+    }
+  },
+
+  async saveInventoryGrid(productId){
+    const msg = document.getElementById('fcInvMsg');
+    const inputs = Array.from(document.querySelectorAll('.fc-stock-input'));
+    msg.textContent = 'SAVING...'; msg.className = 'acct-msg';
+    try{
+      await Promise.all(inputs.map(inp =>
+        supabaseClient.from('product_variants').update({ stock: parseInt(inp.value,10) || 0 }).eq('id', inp.dataset.variantId)
+      ));
+      msg.textContent = 'STOCK UPDATED.'; msg.className = 'acct-msg ok';
+      FREEKY.facility.logAction('Updated stock levels for product ' + productId);
+    }catch(e){
+      msg.textContent = 'COULD NOT SAVE ALL LEVELS.'; msg.className = 'acct-msg err';
+    }
+  },
+
   /* ===== 05 — DEPLOYMENTS (live, status management) ===== */
   async moduleDeployments(content){
     content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">05 // DEPLOYMENTS</div><p class="pf-empty">Reading archive...</p></div>`;
@@ -270,7 +501,7 @@ FREEKY.facility = {
   },
 
   renderDeploymentsList(content){
-    const statuses = ['pending','preparing','packed','dispatched','delivered','returned','refunded'];
+    const statuses = ['pending','paid','processing','assigned','shipped','delivered','cancelled','refunded'];
     content.innerHTML = `
       <div class="fc-module">
         <div class="fc-module-tag">05 // DEPLOYMENTS</div>
@@ -312,6 +543,106 @@ FREEKY.facility = {
     a.href = url; a.download = 'deployments.csv'; a.click();
     URL.revokeObjectURL(url);
     FREEKY.facility.logAction('Exported deployments CSV');
+  },
+
+  /* ===== 06 — DROP MANAGEMENT (live) ===== */
+  async moduleDrops(content){
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">06 // DROP MANAGEMENT</div><p class="pf-empty">Reading archive...</p></div>`;
+    if(!FREEKY.account.hasSupabase()){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">06 // DROP MANAGEMENT</div><p class="pf-empty">Database not configured.</p></div>`;
+      return;
+    }
+    try{
+      const [{ data: drops, error }, { data: products }] = await Promise.all([
+        supabaseClient.from('drops').select('*').order('drop_number', {ascending:true}),
+        supabaseClient.from('products').select('id, drop_id')
+      ]);
+      if(error) throw error;
+      FREEKY.facility.dropsCache = drops || [];
+      FREEKY.facility._dropProductCounts = (products || []).reduce((acc,p) => {
+        if(p.drop_id) acc[p.drop_id] = (acc[p.drop_id]||0) + 1;
+        return acc;
+      }, {});
+      FREEKY.facility.renderDropsList(content);
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">06 // DROP MANAGEMENT</div><p class="pf-empty">Archive unreachable.</p></div>`;
+    }
+  },
+
+  renderDropsList(content){
+    const counts = FREEKY.facility._dropProductCounts || {};
+    content.innerHTML = `
+      <div class="fc-module">
+        <div class="fc-module-tag">06 // DROP MANAGEMENT</div>
+        <div class="btn-row" style="margin-bottom:14px;">
+          <button class="btn ghost" onclick="FREEKY.facility.openDropFile(null)">+ New Drop</button>
+        </div>
+        ${FREEKY.facility.dropsCache.map(d => `
+          <div class="fc-user-row">
+            <div>
+              <div class="fc-user-name">${d.name}</div>
+              <div class="pf-empty">DROP ${d.drop_number} · ${counts[d.id]||0} product(s) · ${d.active?'ACTIVE':'INACTIVE'}${d.launch_date ? ' · LAUNCH ' + new Date(d.launch_date).toLocaleDateString('en-GB') : ''}</div>
+            </div>
+            <button class="btn ghost" onclick="FREEKY.facility.openDropFile('${d.id}')">Open File</button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  },
+
+  openDropFile(id){
+    const d = id ? FREEKY.facility.dropsCache.find(x => x.id === id) : null;
+    const content = document.getElementById('fcContent');
+    content.innerHTML = `
+      <div class="fc-module">
+        <button class="back-btn" onclick="FREEKY.facility.renderDropsList(document.getElementById('fcContent'))">← Back to Drop Management</button>
+        <div class="fc-module-tag">${d ? 'FILE // ' + d.name : 'NEW DROP FILE'}</div>
+        <div class="acct-field"><label>NAME</label><input type="text" id="fcDName" value="${d ? d.name.replace(/"/g,'&quot;') : ''}" placeholder="FILE 004 — ..."></div>
+        <div class="acct-field"><label>DROP NUMBER</label><input type="number" id="fcDNumber" value="${d ? d.drop_number : ''}"></div>
+        <div class="acct-field"><label>LAUNCH DATE</label><input type="date" id="fcDLaunch" value="${d && d.launch_date ? d.launch_date.slice(0,10) : ''}"></div>
+        <div class="acct-field"><label>DESCRIPTION</label>
+          <textarea id="fcDDesc" rows="4" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">${d ? d.description||'' : ''}</textarea>
+        </div>
+        <label class="pf-toggle"><input type="checkbox" id="fcDActive" ${!d || d.active?'checked':''}><span>Active</span></label>
+        <div id="fcDMsg" class="acct-msg"></div>
+        <div class="btn-row">
+          <button class="btn" onclick="FREEKY.facility.saveDropFile(${d ? `'${d.id}'` : 'null'})">Save Changes</button>
+        </div>
+      </div>
+    `;
+  },
+
+  async saveDropFile(id){
+    const msg = document.getElementById('fcDMsg');
+    const payload = {
+      name: document.getElementById('fcDName').value.trim(),
+      drop_number: parseInt(document.getElementById('fcDNumber').value, 10) || 0,
+      launch_date: document.getElementById('fcDLaunch').value || null,
+      description: document.getElementById('fcDDesc').value.trim(),
+      active: document.getElementById('fcDActive').checked
+    };
+    if(!payload.name){
+      msg.textContent = 'NAME IS REQUIRED.'; msg.className = 'acct-msg err'; return;
+    }
+    try{
+      if(id){
+        const { error } = await supabaseClient.from('drops').update(payload).eq('id', id);
+        if(error) throw error;
+        const d = FREEKY.facility.dropsCache.find(x=>x.id===id);
+        if(d) Object.assign(d, payload);
+        FREEKY.facility.logAction('Edited drop: ' + payload.name);
+      } else {
+        payload.slug = payload.name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+        const { data, error } = await supabaseClient.from('drops').insert(payload).select().single();
+        if(error) throw error;
+        FREEKY.facility.dropsCache.push(data);
+        FREEKY.facility.logAction('Created drop: ' + payload.name);
+      }
+      msg.textContent = 'FILE SAVED.'; msg.className = 'acct-msg ok';
+      setTimeout(() => FREEKY.facility.renderDropsList(document.getElementById('fcContent')), 500);
+    }catch(e){
+      msg.textContent = (e.message || 'COULD NOT REACH ARCHIVE').toUpperCase(); msg.className = 'acct-msg err';
+    }
   },
 
   /* ===== 19 — FEATURE FLAGS (live, actually gate real systems) ===== */

@@ -12,10 +12,10 @@ window.FREEKY.data = window.FREEKY.data || {};
 FREEKY.data.facilityModules = [
   {id:'command',      no:'01', name:'Command Center',    minLevel:50, status:'live'},
   {id:'users',        no:'02', name:'User Database',     minLevel:20, status:'live'},
-  {id:'products',     no:'03', name:'Product Control',   minLevel:50, status:'scaffold'},
-  {id:'inventory',    no:'04', name:'Inventory',         minLevel:50, status:'scaffold'},
+  {id:'products',     no:'03', name:'Product Control',   minLevel:50, status:'live'},
+  {id:'inventory',    no:'04', name:'Inventory',         minLevel:50, status:'live'},
   {id:'deployments',  no:'05', name:'Deployments',       minLevel:50, status:'live'},
-  {id:'drops',        no:'06', name:'Drop Management',   minLevel:80, status:'scaffold'},
+  {id:'drops',        no:'06', name:'Drop Management',   minLevel:80, status:'live'},
   {id:'discounts',    no:'07', name:'Discount System',   minLevel:80, status:'scaffold'},
   {id:'homepage',     no:'08', name:'Homepage Control',  minLevel:80, status:'scaffold'},
   {id:'manifestctl',  no:'09', name:'Manifest Control',  minLevel:50, status:'scaffold'},

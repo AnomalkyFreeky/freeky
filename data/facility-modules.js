@@ -16,8 +16,8 @@ FREEKY.data.facilityModules = [
   {id:'inventory',    no:'04', name:'Inventory',         minLevel:50, status:'live'},
   {id:'deployments',  no:'05', name:'Deployments',       minLevel:50, status:'live'},
   {id:'drops',        no:'06', name:'Drop Management',   minLevel:80, status:'live'},
-  {id:'discounts',    no:'07', name:'Discount System',   minLevel:80, status:'scaffold'},
-  {id:'homepage',     no:'08', name:'Homepage Control',  minLevel:80, status:'scaffold'},
+  {id:'discounts',    no:'07', name:'Discount System',   minLevel:80, status:'live'},
+  {id:'homepage',     no:'08', name:'Homepage Control',  minLevel:80, status:'live'},
   {id:'manifestctl',  no:'09', name:'Manifest Control',  minLevel:50, status:'scaffold'},
   {id:'dossierctl',   no:'10', name:'Dossier Control',   minLevel:80, status:'scaffold'},
   {id:'quizctl',      no:'11', name:'Quiz Control',      minLevel:80, status:'scaffold'},
@@ -30,6 +30,6 @@ FREEKY.data.facilityModules = [
   {id:'media',        no:'18', name:'Media Library',     minLevel:50, status:'scaffold'},
   {id:'flags',        no:'19', name:'Feature Flags',     minLevel:99, status:'live'},
   {id:'logs',         no:'20', name:'System Logs',       minLevel:80, status:'live'},
-  {id:'settings',     no:'21', name:'Site Settings',     minLevel:99, status:'scaffold'},
+  {id:'settings',     no:'21', name:'Site Settings',     minLevel:99, status:'live'},
   {id:'terminal',     no:'22', name:'Command Terminal',  minLevel:50, status:'live'}
 ];

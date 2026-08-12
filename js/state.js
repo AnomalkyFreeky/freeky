@@ -35,6 +35,7 @@ FREEKY.state = {
   // loadout / deployment
   cart: FREEKY.storage.get('freeky_loadout', []),
   deploymentsCount: FREEKY.storage.get('freeky_deployments', 0),
+  appliedDiscount: null, // {id, code, type, value} — set by loadout.applyDiscount(), not persisted across sessions
 
   // your file (account)
   accountMode: 'create',

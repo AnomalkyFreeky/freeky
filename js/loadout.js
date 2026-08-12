@@ -118,6 +118,7 @@ FREEKY.loadout = {
 
     s.cart = [];
     FREEKY.storage.set('freeky_loadout', s.cart);
+    s.appliedDiscount = null;
     s.deploymentsCount += 1; // Deployment history — full record now lives in `orders` when logged in
     FREEKY.storage.set('freeky_deployments', s.deploymentsCount);
     FREEKY.loadout.updateBadge();
@@ -130,13 +131,17 @@ FREEKY.loadout = {
     const s = FREEKY.state;
     const profile = FREEKY.account.currentProfile;
 
-    const resolved = [];
-    for(const c of s.cart){
-      const variant = await FREEKY.loadout.findVariant(c);
-      resolved.push({ cartItem: c, variant });
-    }
+    const { resolved, subtotal } = await FREEKY.loadout.resolveCartPricing();
 
-    const subtotal = resolved.reduce((sum, r) => sum + (r.variant && r.variant.price ? Number(r.variant.price) : 0), 0);
+    let discountAmount = 0;
+    const applied = s.appliedDiscount;
+    if(applied){
+      discountAmount = applied.type === 'percentage'
+        ? subtotal * (Number(applied.value) / 100)
+        : Number(applied.value);
+      discountAmount = Math.min(discountAmount, subtotal);
+    }
+    const total = subtotal - discountAmount;
 
     const { data: order, error: orderError } = await supabaseClient
       .from('orders')
@@ -153,9 +158,9 @@ FREEKY.loadout = {
         shipping_address_line_1: dest.address,
         subtotal: subtotal,
         shipping_cost: 0,
-        discount: 0,
+        discount: discountAmount,
         tax: 0,
-        total: subtotal
+        total: total
       })
       .select()
       .single();
@@ -175,7 +180,98 @@ FREEKY.loadout = {
     if(rows.length){
       await supabaseClient.from('order_items').insert(rows);
     }
+
+    // Discount code applied — record the use. Not perfectly race-safe under
+    // concurrent checkouts, but fine at this store's scale; a Postgres RPC
+    // with an atomic increment would be the next step if that ever matters.
+    if(applied){
+      try{
+        const { data: current } = await supabaseClient.from('discounts').select('usage_count').eq('id', applied.id).single();
+        await supabaseClient.from('discounts').update({ usage_count: (current ? current.usage_count : 0) + 1 }).eq('id', applied.id);
+      }catch(e){ /* non-critical — order already went through */ }
+      s.appliedDiscount = null;
+    }
+
     return true;
+  },
+
+  // Resolves every cart item to its Supabase product_variant + price, and
+  // sums the total. Shared by the discount preview and the real checkout
+  // write, so both always agree on the subtotal.
+  async resolveCartPricing(){
+    const s = FREEKY.state;
+    const resolved = [];
+    for(const c of s.cart){
+      const variant = await FREEKY.loadout.findVariant(c);
+      resolved.push({ cartItem: c, variant });
+    }
+    const subtotal = resolved.reduce((sum, r) => sum + (r.variant && r.variant.price ? Number(r.variant.price) : 0), 0);
+    return { resolved, subtotal };
+  },
+
+  async applyDiscount(){
+    const s = FREEKY.state;
+    const input = document.getElementById('dDiscountCode');
+    const msg = document.getElementById('discountMsg');
+    const preview = document.getElementById('discountPreview');
+    const code = (input.value || '').trim().toUpperCase();
+    preview.innerHTML = '';
+
+    if(!code){
+      s.appliedDiscount = null;
+      msg.textContent = ''; msg.className = 'acct-msg';
+      return;
+    }
+    if(!FREEKY.account.hasSupabase()){
+      msg.textContent = 'DISCOUNT CODES REQUIRE AN ACTIVE CONNECTION.'; msg.className = 'acct-msg err';
+      return;
+    }
+
+    msg.textContent = 'VERIFYING CODE...'; msg.className = 'acct-msg';
+
+    try{
+      const { data: discount } = await supabaseClient
+        .from('discounts').select('*').eq('code', code).eq('active', true).single();
+
+      if(!discount){
+        s.appliedDiscount = null;
+        msg.textContent = 'CODE NOT RECOGNIZED OR INACTIVE.'; msg.className = 'acct-msg err';
+        return;
+      }
+      if(discount.expires_at && new Date(discount.expires_at) < new Date()){
+        s.appliedDiscount = null;
+        msg.textContent = 'CODE HAS EXPIRED.'; msg.className = 'acct-msg err';
+        return;
+      }
+      if(discount.usage_limit && discount.usage_count >= discount.usage_limit){
+        s.appliedDiscount = null;
+        msg.textContent = 'CODE HAS REACHED ITS USE LIMIT.'; msg.className = 'acct-msg err';
+        return;
+      }
+
+      const { subtotal } = await FREEKY.loadout.resolveCartPricing();
+
+      if(discount.min_order_total && subtotal < discount.min_order_total){
+        s.appliedDiscount = null;
+        msg.textContent = `REQUIRES A MINIMUM LOADOUT OF £${Number(discount.min_order_total).toFixed(2)}.`; msg.className = 'acct-msg err';
+        return;
+      }
+
+      s.appliedDiscount = { id: discount.id, code: discount.code, type: discount.type, value: discount.value };
+      const discountAmount = Math.min(
+        discount.type === 'percentage' ? subtotal * (Number(discount.value)/100) : Number(discount.value),
+        subtotal
+      );
+      msg.textContent = 'CODE ACCEPTED.'; msg.className = 'acct-msg ok';
+      preview.innerHTML = `
+        <div class="cart-total"><span>SUBTOTAL</span><span>£${subtotal.toFixed(2)}</span></div>
+        <div class="cart-total"><span>DISCOUNT (${discount.code})</span><span>-£${discountAmount.toFixed(2)}</span></div>
+        <div class="cart-total"><span>TOTAL</span><span>£${(subtotal-discountAmount).toFixed(2)}</span></div>
+      `;
+    }catch(e){
+      s.appliedDiscount = null;
+      msg.textContent = 'COULD NOT VERIFY CODE.'; msg.className = 'acct-msg err';
+    }
   },
 
   // Cart items only carry our local product code (e.g. "O-001"), never a

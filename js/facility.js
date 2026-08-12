@@ -21,6 +21,9 @@ FREEKY.facility = {
   dropsCache: [],
   colorsCache: [],
   sizesCache: [],
+  discountsCache: [],
+  homepageCache: [],
+  settingsCache: [],
 
   currentLevel(){
     const p = FREEKY.account.currentProfile;
@@ -120,6 +123,9 @@ FREEKY.facility = {
       deployments: FREEKY.facility.moduleDeployments,
       drops: FREEKY.facility.moduleDrops,
       analytics: FREEKY.facility.moduleAnalytics,
+      discounts: FREEKY.facility.moduleDiscounts,
+      homepage: FREEKY.facility.moduleHomepage,
+      settings: FREEKY.facility.moduleSettings,
       flags: FREEKY.facility.moduleFlags,
       logs: FREEKY.facility.moduleLogs,
       terminal: FREEKY.facility.moduleTerminal
@@ -737,6 +743,264 @@ FREEKY.facility = {
         </div>
       </div>
     `;
+  },
+
+  /* ===== 07 — DISCOUNT SYSTEM (live) ===== */
+  async moduleDiscounts(content){
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><p class="pf-empty">Reading archive...</p></div>`;
+    if(!FREEKY.account.hasSupabase()){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><p class="pf-empty">Database not configured.</p></div>`;
+      return;
+    }
+    try{
+      const { data, error } = await supabaseClient.from('discounts').select('*').order('created_at', {ascending:false});
+      if(error) throw error;
+      FREEKY.facility.discountsCache = data || [];
+      FREEKY.facility.renderDiscountsList(content);
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><p class="pf-empty">Archive unreachable. Have you run database/003_new_tables.sql yet?</p></div>`;
+    }
+  },
+
+  renderDiscountsList(content){
+    content.innerHTML = `
+      <div class="fc-module">
+        <div class="fc-module-tag">07 // DISCOUNT SYSTEM</div>
+        <div class="btn-row" style="margin-bottom:14px;">
+          <button class="btn ghost" onclick="FREEKY.facility.openDiscountFile(null)">+ New Discount</button>
+        </div>
+        ${FREEKY.facility.discountsCache.length ? FREEKY.facility.discountsCache.map(d => `
+          <div class="fc-user-row">
+            <div>
+              <div class="fc-user-name">${d.code}</div>
+              <div class="pf-empty">${d.type==='percentage' ? d.value+'%' : '£'+Number(d.value).toFixed(2)} OFF · ${d.active?'ACTIVE':'INACTIVE'} · USED ${d.usage_count}${d.usage_limit?'/'+d.usage_limit:''}${d.expires_at ? ' · EXPIRES '+new Date(d.expires_at).toLocaleDateString('en-GB') : ''}</div>
+            </div>
+            <button class="btn ghost" onclick="FREEKY.facility.openDiscountFile('${d.id}')">Open File</button>
+          </div>
+        `).join('') : '<p class="pf-empty">No discount codes on record.</p>'}
+      </div>
+    `;
+  },
+
+  openDiscountFile(id){
+    const d = id ? FREEKY.facility.discountsCache.find(x => x.id === id) : null;
+    const content = document.getElementById('fcContent');
+    content.innerHTML = `
+      <div class="fc-module">
+        <button class="back-btn" onclick="FREEKY.facility.renderDiscountsList(document.getElementById('fcContent'))">← Back to Discount System</button>
+        <div class="fc-module-tag">${d ? 'FILE // ' + d.code : 'NEW DISCOUNT FILE'}</div>
+        <div class="acct-field"><label>CODE</label><input type="text" id="fcDiCode" value="${d ? d.code : ''}" placeholder="e.g. ARCHIVE10" style="text-transform:uppercase;"></div>
+        <div class="acct-field"><label>TYPE</label>
+          <select id="fcDiType" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">
+            <option value="percentage" ${!d || d.type==='percentage'?'selected':''}>PERCENTAGE</option>
+            <option value="fixed" ${d && d.type==='fixed'?'selected':''}>FIXED AMOUNT (£)</option>
+          </select>
+        </div>
+        <div class="acct-field"><label>VALUE</label><input type="number" step="0.01" id="fcDiValue" value="${d ? d.value : ''}"></div>
+        <div class="acct-field"><label>MINIMUM ORDER TOTAL (£, optional)</label><input type="number" step="0.01" id="fcDiMin" value="${d && d.min_order_total ? d.min_order_total : ''}"></div>
+        <div class="acct-field"><label>USAGE LIMIT (optional, blank = unlimited)</label><input type="number" id="fcDiLimit" value="${d && d.usage_limit ? d.usage_limit : ''}"></div>
+        <div class="acct-field"><label>EXPIRES (optional)</label><input type="date" id="fcDiExpires" value="${d && d.expires_at ? d.expires_at.slice(0,10) : ''}"></div>
+        <label class="pf-toggle"><input type="checkbox" id="fcDiActive" ${!d || d.active?'checked':''}><span>Active</span></label>
+        <div id="fcDiMsg" class="acct-msg"></div>
+        <div class="btn-row">
+          <button class="btn" onclick="FREEKY.facility.saveDiscountFile(${d ? `'${d.id}'` : 'null'})">Save Changes</button>
+        </div>
+      </div>
+    `;
+  },
+
+  async saveDiscountFile(id){
+    const msg = document.getElementById('fcDiMsg');
+    const payload = {
+      code: document.getElementById('fcDiCode').value.trim().toUpperCase(),
+      type: document.getElementById('fcDiType').value,
+      value: parseFloat(document.getElementById('fcDiValue').value) || 0,
+      min_order_total: document.getElementById('fcDiMin').value ? parseFloat(document.getElementById('fcDiMin').value) : null,
+      usage_limit: document.getElementById('fcDiLimit').value ? parseInt(document.getElementById('fcDiLimit').value,10) : null,
+      expires_at: document.getElementById('fcDiExpires').value || null,
+      active: document.getElementById('fcDiActive').checked
+    };
+    if(!payload.code || !payload.value){
+      msg.textContent = 'CODE AND VALUE ARE REQUIRED.'; msg.className = 'acct-msg err'; return;
+    }
+    try{
+      if(id){
+        const { error } = await supabaseClient.from('discounts').update(payload).eq('id', id);
+        if(error) throw error;
+        const d = FREEKY.facility.discountsCache.find(x=>x.id===id);
+        if(d) Object.assign(d, payload);
+        FREEKY.facility.logAction('Edited discount: ' + payload.code);
+      } else {
+        const { data, error } = await supabaseClient.from('discounts').insert(payload).select().single();
+        if(error) throw error;
+        FREEKY.facility.discountsCache.unshift(data);
+        FREEKY.facility.logAction('Created discount: ' + payload.code);
+      }
+      msg.textContent = 'FILE SAVED.'; msg.className = 'acct-msg ok';
+      setTimeout(() => FREEKY.facility.renderDiscountsList(document.getElementById('fcContent')), 500);
+    }catch(e){
+      msg.textContent = (e.message || 'COULD NOT REACH ARCHIVE').toUpperCase(); msg.className = 'acct-msg err';
+    }
+  },
+
+  /* ===== 08 — HOMEPAGE CONTROL (live) ===== */
+  async moduleHomepage(content){
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><p class="pf-empty">Reading archive...</p></div>`;
+    if(!FREEKY.account.hasSupabase()){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><p class="pf-empty">Database not configured.</p></div>`;
+      return;
+    }
+    try{
+      const { data, error } = await supabaseClient.from('homepage_content').select('*').order('sort_order', {ascending:true});
+      if(error) throw error;
+      FREEKY.facility.homepageCache = data || [];
+      FREEKY.facility.renderHomepageList(content);
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><p class="pf-empty">Archive unreachable. Have you run database/003_new_tables.sql yet?</p></div>`;
+    }
+  },
+
+  renderHomepageList(content){
+    content.innerHTML = `
+      <div class="fc-module">
+        <div class="fc-module-tag">08 // HOMEPAGE CONTROL</div>
+        <div class="btn-row" style="margin-bottom:14px;">
+          <button class="btn ghost" onclick="FREEKY.facility.openHomepageBlock(null)">+ New Block</button>
+        </div>
+        ${FREEKY.facility.homepageCache.length ? FREEKY.facility.homepageCache.map(b => `
+          <div class="fc-user-row">
+            <div>
+              <div class="fc-user-name">${b.block_key}${b.title ? ' — ' + b.title : ''}</div>
+              <div class="pf-empty">ORDER ${b.sort_order} · ${b.active?'ACTIVE':'INACTIVE'}</div>
+            </div>
+            <button class="btn ghost" onclick="FREEKY.facility.openHomepageBlock('${b.id}')">Open File</button>
+          </div>
+        `).join('') : '<p class="pf-empty">No content blocks yet.</p>'}
+      </div>
+    `;
+  },
+
+  openHomepageBlock(id){
+    const b = id ? FREEKY.facility.homepageCache.find(x => x.id === id) : null;
+    const content = document.getElementById('fcContent');
+    content.innerHTML = `
+      <div class="fc-module">
+        <button class="back-btn" onclick="FREEKY.facility.renderHomepageList(document.getElementById('fcContent'))">← Back to Homepage Control</button>
+        <div class="fc-module-tag">${b ? 'FILE // ' + b.block_key : 'NEW CONTENT BLOCK'}</div>
+        <div class="acct-field"><label>BLOCK KEY (e.g. hero_banner, announcement)</label><input type="text" id="fcHKey" value="${b ? b.block_key : ''}"></div>
+        <div class="acct-field"><label>TITLE</label><input type="text" id="fcHTitle" value="${b ? (b.title||'').replace(/"/g,'&quot;') : ''}"></div>
+        <div class="acct-field"><label>BODY</label>
+          <textarea id="fcHBody" rows="4" style="width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:13px; padding:12px 14px;">${b ? b.body||'' : ''}</textarea>
+        </div>
+        <div class="acct-field"><label>IMAGE URL (optional)</label><input type="text" id="fcHImage" value="${b ? b.image_url||'' : ''}"></div>
+        <div class="acct-field"><label>SORT ORDER</label><input type="number" id="fcHOrder" value="${b ? b.sort_order : '0'}"></div>
+        <label class="pf-toggle"><input type="checkbox" id="fcHActive" ${!b || b.active?'checked':''}><span>Active</span></label>
+        <div id="fcHMsg" class="acct-msg"></div>
+        <div class="btn-row">
+          <button class="btn" onclick="FREEKY.facility.saveHomepageBlock(${b ? `'${b.id}'` : 'null'})">Save Changes</button>
+        </div>
+      </div>
+    `;
+  },
+
+  async saveHomepageBlock(id){
+    const msg = document.getElementById('fcHMsg');
+    const payload = {
+      block_key: document.getElementById('fcHKey').value.trim(),
+      title: document.getElementById('fcHTitle').value.trim(),
+      body: document.getElementById('fcHBody').value.trim(),
+      image_url: document.getElementById('fcHImage').value.trim() || null,
+      sort_order: parseInt(document.getElementById('fcHOrder').value,10) || 0,
+      active: document.getElementById('fcHActive').checked
+    };
+    if(!payload.block_key){
+      msg.textContent = 'BLOCK KEY IS REQUIRED.'; msg.className = 'acct-msg err'; return;
+    }
+    try{
+      if(id){
+        const { error } = await supabaseClient.from('homepage_content').update(payload).eq('id', id);
+        if(error) throw error;
+        const b = FREEKY.facility.homepageCache.find(x=>x.id===id);
+        if(b) Object.assign(b, payload);
+        FREEKY.facility.logAction('Edited homepage block: ' + payload.block_key);
+      } else {
+        const { data, error } = await supabaseClient.from('homepage_content').insert(payload).select().single();
+        if(error) throw error;
+        FREEKY.facility.homepageCache.push(data);
+        FREEKY.facility.logAction('Created homepage block: ' + payload.block_key);
+      }
+      msg.textContent = 'FILE SAVED.'; msg.className = 'acct-msg ok';
+      setTimeout(() => FREEKY.facility.renderHomepageList(document.getElementById('fcContent')), 500);
+    }catch(e){
+      msg.textContent = (e.message || 'COULD NOT REACH ARCHIVE').toUpperCase(); msg.className = 'acct-msg err';
+    }
+  },
+
+  /* ===== 21 — SITE SETTINGS (live, key/value store) ===== */
+  async moduleSettings(content){
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">21 // SITE SETTINGS</div><p class="pf-empty">Reading archive...</p></div>`;
+    if(!FREEKY.account.hasSupabase()){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">21 // SITE SETTINGS</div><p class="pf-empty">Database not configured.</p></div>`;
+      return;
+    }
+    try{
+      const { data, error } = await supabaseClient.from('site_settings').select('*').order('key', {ascending:true});
+      if(error) throw error;
+      FREEKY.facility.settingsCache = data || [];
+      FREEKY.facility.renderSettingsList(content);
+    }catch(e){
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">21 // SITE SETTINGS</div><p class="pf-empty">Archive unreachable. Have you run database/003_new_tables.sql yet?</p></div>`;
+    }
+  },
+
+  renderSettingsList(content){
+    content.innerHTML = `
+      <div class="fc-module">
+        <div class="fc-module-tag">21 // SITE SETTINGS</div>
+        ${FREEKY.facility.settingsCache.map(s => `
+          <div class="acct-field">
+            <label>${s.key}</label>
+            <input type="text" class="fc-setting-input" data-key="${s.key}" value="${(s.value||'').replace(/"/g,'&quot;')}">
+          </div>
+        `).join('')}
+        <div class="btn-row" style="margin:18px 0;">
+          <input type="text" id="fcNewSettingKey" class="fc-search" placeholder="new_setting_key" style="flex:1;">
+          <button class="btn ghost" onclick="FREEKY.facility.addSetting()">+ Add Setting</button>
+        </div>
+        <div id="fcSetMsg" class="acct-msg"></div>
+        <div class="btn-row">
+          <button class="btn" onclick="FREEKY.facility.saveAllSettings()">Save All</button>
+        </div>
+      </div>
+    `;
+  },
+
+  async saveAllSettings(){
+    const msg = document.getElementById('fcSetMsg');
+    const inputs = Array.from(document.querySelectorAll('.fc-setting-input'));
+    msg.textContent = 'SAVING...'; msg.className = 'acct-msg';
+    try{
+      await Promise.all(inputs.map(inp =>
+        supabaseClient.from('site_settings').update({ value: inp.value, updated_at: new Date().toISOString() }).eq('key', inp.dataset.key)
+      ));
+      msg.textContent = 'SETTINGS SAVED.'; msg.className = 'acct-msg ok';
+      FREEKY.facility.logAction('Updated site settings');
+    }catch(e){
+      msg.textContent = 'COULD NOT SAVE ALL SETTINGS.'; msg.className = 'acct-msg err';
+    }
+  },
+
+  async addSetting(){
+    const keyInput = document.getElementById('fcNewSettingKey');
+    const key = keyInput.value.trim().toLowerCase().replace(/[^a-z0-9_]+/g,'_');
+    if(!key) return;
+    try{
+      const { data, error } = await supabaseClient.from('site_settings').insert({ key, value: '' }).select().single();
+      if(error) throw error;
+      FREEKY.facility.settingsCache.push(data);
+      FREEKY.facility.logAction('Added site setting: ' + key);
+      FREEKY.facility.renderSettingsList(document.getElementById('fcContent'));
+    }catch(e){ /* likely a duplicate key — silently ignored, list stays as-is */ }
   },
 
   /* ===== 19 — FEATURE FLAGS (live, actually gate real systems) ===== */

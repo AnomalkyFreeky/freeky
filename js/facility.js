@@ -954,15 +954,21 @@ FREEKY.facility = {
   },
 
   renderSettingsList(content){
+    const recommended = [
+      ['gate_eyebrow', 'Access Gate — eyebrow'], ['gate_headline', 'Access Gate — headline'],
+      ['gate_subtext_before', 'Access Gate — copy before redaction'], ['gate_subtext_after', 'Access Gate — copy after redaction'],
+      ['gate_network_label', 'Access Gate — network label'], ['gate_begin_button', 'Access Gate — primary button'],
+      ['gate_decline_button', 'Access Gate — secondary button'], ['footer_tagline_default', 'Footer — checkout / confirmation'],
+      ['footer_tagline_dossier', 'Footer — manifest / dossier'], ['footer_tagline_account', 'Footer — account']
+    ];
+    const existing = new Map(FREEKY.facility.settingsCache.map(s => [s.key, s.value || '']));
+    const fields = recommended.map(([key, label]) => `<div class="acct-field"><label>${label} <span style="color:var(--dim);">// ${key}</span></label><input type="text" class="fc-setting-input" data-key="${key}" value="${(existing.get(key) || '').replace(/"/g,'&quot;')}"></div>`).join('');
+    const custom = FREEKY.facility.settingsCache.filter(s => !recommended.some(([key]) => key === s.key)).map(s => `<div class="acct-field"><label>${s.key}</label><input type="text" class="fc-setting-input" data-key="${s.key}" value="${(s.value||'').replace(/"/g,'&quot;')}"></div>`).join('');
     content.innerHTML = `
       <div class="fc-module">
         <div class="fc-module-tag">21 // SITE SETTINGS</div>
-        ${FREEKY.facility.settingsCache.map(s => `
-          <div class="acct-field">
-            <label>${s.key}</label>
-            <input type="text" class="fc-setting-input" data-key="${s.key}" value="${(s.value||'').replace(/"/g,'&quot;')}">
-          </div>
-        `).join('')}
+        <p class="pf-empty" style="margin-bottom:18px;">Access Gate and footer text. Saving creates any missing recommended setting.</p>
+        ${fields}${custom}
         <div class="btn-row" style="margin:18px 0;">
           <input type="text" id="fcNewSettingKey" class="fc-search" placeholder="new_setting_key" style="flex:1;">
           <button class="btn ghost" onclick="FREEKY.facility.addSetting()">+ Add Setting</button>
@@ -980,9 +986,10 @@ FREEKY.facility = {
     const inputs = Array.from(document.querySelectorAll('.fc-setting-input'));
     msg.textContent = 'SAVING...'; msg.className = 'acct-msg';
     try{
-      await Promise.all(inputs.map(inp =>
-        supabaseClient.from('site_settings').update({ value: inp.value, updated_at: new Date().toISOString() }).eq('key', inp.dataset.key)
-      ));
+      const rows = inputs.map(inp => ({ key: inp.dataset.key, value: inp.value, updated_at: new Date().toISOString() }));
+      const { error } = await supabaseClient.from('site_settings').upsert(rows, { onConflict:'key' });
+      if(error) throw error;
+      FREEKY.facility.settingsCache = rows;
       msg.textContent = 'SETTINGS SAVED.'; msg.className = 'acct-msg ok';
       FREEKY.facility.logAction('Updated site settings');
     }catch(e){

@@ -13,8 +13,21 @@ FREEKY.loadout = {
     const s = FREEKY.state;
     if(!s.currentItem) return;
     if(!s.selectedSize){ s.cartMsg = 'SELECT A SIZE FIRST'; FREEKY.products.render(); return; }
-    const colorObj = FREEKY.data.colorOptions.find(c=>c.hex===s.selectedColor) || FREEKY.data.colorOptions[0];
-    s.cart.push({file:s.currentItem.file, name:s.currentItem.name, color:colorObj.name, size:s.selectedSize, req:s.currentItem.req});
+    const selectedVariant = FREEKY.products.selectedVariant();
+    // A Supabase-backed item must always resolve to its exact in-stock variant.
+    if(s.currentItem.catalog && !selectedVariant){
+      s.cartMsg = 'THIS SIZE / COLOR IS NO LONGER AVAILABLE'; FREEKY.products.render(); return;
+    }
+    const colors = FREEKY.products.colorOptions(s.currentItem);
+    const colorObj = colors.find(c=>c.hex===s.selectedColor) || colors[0];
+    s.cart.push({
+      file:s.currentItem.file,
+      name:s.currentItem.catalog && s.currentItem.catalog.name || s.currentItem.name,
+      color:colorObj.name,
+      size:s.selectedSize,
+      req:s.currentItem.req,
+      variantId:selectedVariant ? selectedVariant.id : null
+    });
     FREEKY.storage.set('freeky_loadout', s.cart);
     s.cartMsg = 'FILE ADDED TO LOADOUT — STATUS UPDATED';
     FREEKY.products.render();
@@ -108,8 +121,12 @@ FREEKY.loadout = {
 
     if(FREEKY.account.hasSupabase() && FREEKY.account.currentProfile){
       try{
-        await FREEKY.loadout.writeOrderToSupabase({agent, address, city, postal, country, phone});
+        const order = await FREEKY.loadout.atomicCheckout({agent, address, city, postal, country, phone});
+        if(!order) throw new Error('ORDER COULD NOT BE CREATED');
       }catch(e){
+        msg.textContent = (e.message || 'AUTHORIZATION COULD NOT BE COMPLETED.').toUpperCase();
+        msg.className = 'acct-msg err';
+        return;
         // Real backend hiccup — deployment still proceeds locally rather than
         // blocking the visitor. Logged for whoever's debugging the migration.
         console.error('FREƎ-KY: order write failed, deployment proceeded locally only.', e);
@@ -125,6 +142,20 @@ FREEKY.loadout = {
     if(FREEKY.personnel) FREEKY.personnel.logIncident('Recovered Equipment');
     FREEKY.navigation.showScreen('deployed');
     FREEKY.ui.scheduleGlitchScan();
+  },
+
+  async atomicCheckout(dest){
+    const s = FREEKY.state;
+    const variants = await Promise.all(s.cart.map(c => FREEKY.loadout.findVariant(c)));
+    if(variants.some(v => !v || !v.id)) throw new Error('ONE OR MORE SELECTED ITEMS ARE NO LONGER AVAILABLE');
+    const { data, error } = await supabaseClient.rpc('checkout_loadout', {
+      p_items: variants.map(v => ({ variant_id: v.id, quantity: 1 })),
+      p_shipping: { name:dest.agent, address_line_1:dest.address, city:dest.city, postcode:dest.postal, country:dest.country, phone:dest.phone },
+      p_discount_code: s.appliedDiscount ? s.appliedDiscount.code : null
+    });
+    if(error) throw error;
+    s.appliedDiscount = null;
+    return data;
   },
 
   async writeOrderToSupabase(dest){
@@ -280,11 +311,18 @@ FREEKY.loadout = {
   // order still gets created either way, just without that line item linked.
   async findVariant(cartItem){
     try{
+      if(cartItem.variantId){
+        const { data: exactVariant } = await supabaseClient
+          .from('product_variants').select('id, price, stock, active').eq('id', cartItem.variantId).single();
+        return exactVariant && exactVariant.active && Number(exactVariant.stock) > 0 ? exactVariant : null;
+      }
       const { data: product } = await supabaseClient
         .from('products').select('id').eq('code', cartItem.file).single();
       if(!product) return null;
       const { data: variant } = await supabaseClient
-        .from('product_variants').select('id, price').eq('product_id', product.id).limit(1).single();
+        .from('product_variants').select('id, price, stock, active, sizes!inner(name), colors!inner(name)')
+        .eq('product_id', product.id).eq('sizes.name', cartItem.size).eq('colors.name', cartItem.color).limit(1).single();
+      if(variant && (!variant.active || Number(variant.stock) < 1)) return null;
       return variant || null;
     }catch(e){ return null; }
   }

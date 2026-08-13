@@ -34,6 +34,15 @@ FREEKY.adminCatalog = {
     return data || [];
   },
 
+  async listAllImages(){
+    const { data, error } = await supabaseClient
+      .from('product_images')
+      .select('id, product_id, image_url, alt_text, sort_order, is_primary, products(name, code)')
+      .order('created_at', {ascending:false});
+    if(error) throw error;
+    return data || [];
+  },
+
   async saveImages(rows){
     if(!rows.length) return;
     const { error } = await supabaseClient.from('product_images').upsert(rows);

@@ -6,6 +6,11 @@ FREEKY.facility = {
   colorsCache: [], sizesCache: [], discountsCache: [], homepageCache: [], settingsCache: [],
   currentLevel(){ const p = FREEKY.account.currentProfile; const role = p && FREEKY.data.roles[p.role]; return role ? role.level : 0; },
   hasAccess(){ return FREEKY.facility.currentLevel() >= 20; },
+  archiveError(error){
+    const detail = String((error && error.message) || 'Unknown database error.')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<p class="pf-empty">DATABASE RESPONSE: ${detail}</p><p class="pf-empty" style="margin-top:10px;">Check your Facility role and run database/007_facility_staff_policies.sql.</p>`;
+  },
   logAction(action){
     const p = FREEKY.account.currentProfile, log = FREEKY.storage.get('freeky_facility_logs', []);
     log.unshift({ timestamp:new Date().toISOString(), operator:p ? p.callsign : 'UNKNOWN', action, module:FREEKY.facility.activeModule });
@@ -30,7 +35,7 @@ FREEKY.facility = {
   openModule(id){
     const mod = FREEKY.data.facilityModules.find(m => m.id === id); if(!mod || FREEKY.facility.currentLevel() < mod.minLevel) return;
     FREEKY.facility.activeModule = id; FREEKY.facility.renderNav(); FREEKY.facility.logAction('Opened module: ' + mod.name);
-    const renderers = { command:FREEKY.facility.moduleCommand, users:FREEKY.facility.moduleUsers, products:FREEKY.facility.moduleProducts, inventory:FREEKY.facility.moduleInventory, deployments:FREEKY.facility.moduleDeployments, drops:FREEKY.facility.moduleDrops, analytics:FREEKY.facility.moduleAnalytics, discounts:FREEKY.facility.moduleDiscounts, homepage:FREEKY.facility.moduleHomepage, settings:FREEKY.facility.moduleSettings, flags:FREEKY.facility.moduleFlags, logs:FREEKY.facility.moduleLogs, terminal:FREEKY.facility.moduleTerminal };
+    const renderers = { command:FREEKY.facility.moduleCommand, users:FREEKY.facility.moduleUsers, products:FREEKY.facility.moduleProducts, inventory:FREEKY.facility.moduleInventory, deployments:FREEKY.facility.moduleDeployments, drops:FREEKY.facility.moduleDrops, analytics:FREEKY.facility.moduleAnalytics, discounts:FREEKY.facility.moduleDiscounts, homepage:FREEKY.facility.moduleHomepage, manifestctl:FREEKY.facility.moduleManifestctl, dossierctl:FREEKY.facility.moduleDossierctl, quizctl:FREEKY.facility.moduleQuizctl, anomalkyctl:FREEKY.facility.moduleAnomalkyctl, randomctl:FREEKY.facility.moduleRandomctl, database:FREEKY.facility.moduleDatabase, media:FREEKY.facility.moduleMedia, settings:FREEKY.facility.moduleSettings, flags:FREEKY.facility.moduleFlags, logs:FREEKY.facility.moduleLogs, terminal:FREEKY.facility.moduleTerminal };
     const content = document.getElementById('fcContent'); if(renderers[id]) renderers[id](content,mod); else content.innerHTML = FREEKY.facility.scaffoldHtml(mod); FREEKY.ui.scheduleGlitchScan();
   },
   scaffoldHtml(mod){ return `<div class="fc-module"><div class="fc-module-tag">${mod.no} // ${mod.name.toUpperCase()}</div><div class="sealed-notice"><div class="sealed-tag glitch" data-text="MODULE SEALED">MODULE SEALED</div><p>This module's structure exists and is ready for future connection.</p></div></div>`; },
@@ -43,7 +48,7 @@ FREEKY.facility = {
   async moduleUsers(content){
     content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">02 // USER DATABASE</div><p class="pf-empty">Reading archive...</p></div>`;
     if(!FREEKY.account.hasSupabase()){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">02 // USER DATABASE</div><p class="pf-empty">Database not configured.</p></div>`; return; }
-    try { const {data,error} = await supabaseClient.from('profiles').select('*').order('created_at',{ascending:false}); if(error) throw error; FREEKY.facility.usersCache=data||[]; FREEKY.facility.renderUsersList(content,''); } catch(e) { content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">02 // USER DATABASE</div><p class="pf-empty">Archive unreachable. This module needs an admin-bypass RLS policy to see other users.</p></div>`; }
+    try { const {data,error} = await supabaseClient.from('profiles').select('*').order('created_at',{ascending:false}); if(error) throw error; FREEKY.facility.usersCache=data||[]; FREEKY.facility.renderUsersList(content,''); } catch(e) { content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">02 // USER DATABASE</div>${FREEKY.facility.archiveError(e)}</div>`; }
   },
   renderUsersList(content,filter){
     const rows = FREEKY.facility.usersCache.filter(u=>!filter||(u.username||'').toLowerCase().includes(filter.toLowerCase())||(u.callsign||'').toLowerCase().includes(filter.toLowerCase()));
@@ -59,7 +64,7 @@ FREEKY.facility = {
   },
   async moduleAnalytics(content){
     content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">16 // ANALYTICS</div><p class="pf-empty">Reading archive...</p></div>`; if(!FREEKY.account.hasSupabase()){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">16 // ANALYTICS</div><p class="pf-empty">Database not configured.</p></div>`;return;}
-    try { const {data:orders,error}=await supabaseClient.from('orders').select('total,status,created_at').order('created_at',{ascending:true});if(error)throw error;FREEKY.facility.renderAnalytics(content,orders||[]);}catch(e){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">16 // ANALYTICS</div><p class="pf-empty">Archive unreachable.</p></div>`;}
+    try { const {data:orders,error}=await supabaseClient.from('orders').select('total,status,created_at').order('created_at',{ascending:true});if(error)throw error;FREEKY.facility.renderAnalytics(content,orders||[]);}catch(e){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">16 // ANALYTICS</div>${FREEKY.facility.archiveError(e)}</div>`;}
   },
   renderAnalytics(content,orders){
     const revenue=orders.reduce((n,o)=>n+(Number(o.total)||0),0), count=orders.length, statuses={};orders.forEach(o=>statuses[o.status]=(statuses[o.status]||0)+1);

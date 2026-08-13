@@ -13,7 +13,7 @@ Object.assign(FREEKY.facility, {
       FREEKY.facility.settingsCache = await FREEKY.adminContent.listSettings();
       FREEKY.facility.renderSettingsList(content);
     }catch(e){
-      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">21 // SITE SETTINGS</div><p class="pf-empty">Archive unreachable. Have you run database/003_new_tables.sql yet?</p></div>`;
+      content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">21 // SITE SETTINGS</div>${FREEKY.facility.archiveError(e)}</div>`;
     }
   },
 

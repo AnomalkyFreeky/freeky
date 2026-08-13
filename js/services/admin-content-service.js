@@ -39,6 +39,20 @@ FREEKY.adminContent = {
     return data;
   },
 
+  async getManagedContent(key){
+    const { data, error } = await supabaseClient.from('managed_content').select('content_value').eq('content_key', key).maybeSingle();
+    if(error) throw error;
+    return data ? data.content_value : null;
+  },
+
+  async saveManagedContent(key, value){
+    const { data, error } = await supabaseClient.from('managed_content')
+      .upsert({ content_key:key, content_value:value, updated_at:new Date().toISOString() }, {onConflict:'content_key'})
+      .select('content_value').single();
+    if(error) throw error;
+    return data.content_value;
+  },
+
   async listRecords(table, column, ascending){
     const { data, error } = await supabaseClient.from(table).select('*').order(column, {ascending});
     if(error) throw error;

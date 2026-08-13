@@ -26,8 +26,10 @@ FREEKY.classification = {
     }
     // 3 or 4-way tie: winner stays null — no dominant behavioural pattern, classification fails.
 
-    const rareAnomaly = Math.random() < 0.04; // protocol instability — very small hidden probability
-    const paradoxAllowed = FREEKY.storage.get('freeky_feature_flags', {}).paradox !== false; // Facility Control 19 // Feature Flags
+    const anomalySettings = (FREEKY.siteSettings && FREEKY.siteSettings.values) || {};
+    const configuredRate = Number(anomalySettings.anomaly_rate);
+    const rareAnomaly = Math.random() < (Number.isFinite(configuredRate) ? Math.min(100, Math.max(0, configuredRate)) / 100 : 0.04);
+    const paradoxAllowed = FREEKY.storage.get('freeky_feature_flags', {}).paradox !== false && anomalySettings.anomaly_enabled !== 'false';
 
     if(paradoxAllowed && (!winner || rareAnomaly)){
       s.finalKey = 'anomaly';

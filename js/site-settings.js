@@ -9,6 +9,7 @@ FREEKY.siteSettings = {
     }catch(e){ console.warn('FREÆŽ-KY: site settings unavailable.', e); }
   },
   apply(settings){
+    FREEKY.siteSettings.values = Object.assign(FREEKY.siteSettings.values || {}, settings);
     Object.entries(settings).forEach(([key, value]) => {
       if(value === null || value === '') return;
       document.querySelectorAll(`[data-site-setting="${key}"]`).forEach(el => {

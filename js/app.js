@@ -20,6 +20,7 @@ window.FREEKY = window.FREEKY || {};
   FREEKY.account.init(); // restore a real Supabase session, if one exists — no-op until credentials are set
 
   FREEKY.siteSettings.init(); // public Access Gate copy, configured in Facility Control
+  FREEKY.siteContent.init(); // Dossier, quiz and randomized copy managed through Facility Control
   FREEKY.ui.scheduleGlitchScan();
   setTimeout(FREEKY.ui.runAmbientGlitch, 3000);
 })();

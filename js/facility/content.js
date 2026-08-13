@@ -6,7 +6,7 @@ Object.assign(FREEKY.facility, {
   async moduleDiscounts(content){
     content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><p class="pf-empty">Reading archive...</p></div>`;
     if(!FREEKY.account.hasSupabase()){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><p class="pf-empty">Database not configured.</p></div>`;return;}
-    try{FREEKY.facility.discountsCache=await FREEKY.adminContent.listDiscounts();FREEKY.facility.renderDiscountsList(content);}catch(e){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><p class="pf-empty">Archive unreachable.</p></div>`;}
+    try{FREEKY.facility.discountsCache=await FREEKY.adminContent.listDiscounts();FREEKY.facility.renderDiscountsList(content);}catch(e){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div>${FREEKY.facility.archiveError(e)}</div>`;}
   },
   renderDiscountsList(content){
     content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><div class="btn-row" style="margin-bottom:14px;"><button class="btn ghost" onclick="FREEKY.facility.openDiscountFile(null)">+ New Discount</button></div>${FREEKY.facility.discountsCache.length?FREEKY.facility.discountsCache.map(d=>`<div class="fc-user-row"><div><div class="fc-user-name">${d.code}</div><div class="pf-empty">${d.type==='percentage'?d.value+'%':'£'+Number(d.value).toFixed(2)} OFF · ${d.active?'ACTIVE':'INACTIVE'} · USED ${d.usage_count}${d.usage_limit?'/'+d.usage_limit:''}</div></div><button class="btn ghost" onclick="FREEKY.facility.openDiscountFile('${d.id}')">Open File</button></div>`).join(''):'<p class="pf-empty">No discount codes on record.</p>'}</div>`;
@@ -23,7 +23,7 @@ Object.assign(FREEKY.facility, {
   async moduleHomepage(content){
     content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><p class="pf-empty">Reading archive...</p></div>`;
     if(!FREEKY.account.hasSupabase()){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><p class="pf-empty">Database not configured.</p></div>`;return;}
-    try{FREEKY.facility.homepageCache=await FREEKY.adminContent.listHomepageBlocks();FREEKY.facility.renderHomepageList(content);}catch(e){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><p class="pf-empty">Archive unreachable.</p></div>`;}
+    try{FREEKY.facility.homepageCache=await FREEKY.adminContent.listHomepageBlocks();FREEKY.facility.renderHomepageList(content);}catch(e){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div>${FREEKY.facility.archiveError(e)}</div>`;}
   },
   renderHomepageList(content){content.innerHTML=`<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><div class="btn-row" style="margin-bottom:14px;"><button class="btn ghost" onclick="FREEKY.facility.openHomepageBlock(null)">+ New Block</button></div>${FREEKY.facility.homepageCache.length?FREEKY.facility.homepageCache.map(b=>`<div class="fc-user-row"><div><div class="fc-user-name">${b.block_key}${b.title?' — '+b.title:''}</div><div class="pf-empty">ORDER ${b.sort_order} · ${b.active?'ACTIVE':'INACTIVE'}</div></div><button class="btn ghost" onclick="FREEKY.facility.openHomepageBlock('${b.id}')">Open File</button></div>`).join(''):'<p class="pf-empty">No content blocks yet.</p>'}</div>`;},
   openHomepageBlock(id){

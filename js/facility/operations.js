@@ -13,7 +13,7 @@ Object.assign(FREEKY.facility, {
     try{
       FREEKY.facility.productsCache = await FREEKY.adminOperations.listInventory();
       FREEKY.facility.renderInventoryList(content);
-    }catch(e){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Archive unreachable.</p></div>`; }
+    }catch(e){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div>${FREEKY.facility.archiveError(e)}</div>`; }
   },
 
   renderInventoryList(content){
@@ -55,7 +55,7 @@ Object.assign(FREEKY.facility, {
     try{
       FREEKY.facility.ordersCache = await FREEKY.adminOperations.listOrders();
       FREEKY.facility.renderDeploymentsList(content);
-    }catch(e){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">05 // DEPLOYMENTS</div><p class="pf-empty">Archive unreachable.</p></div>`; }
+    }catch(e){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">05 // DEPLOYMENTS</div>${FREEKY.facility.archiveError(e)}</div>`; }
   },
 
   renderDeploymentsList(content){

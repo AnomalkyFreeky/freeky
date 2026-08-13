@@ -26,7 +26,8 @@ FREEKY.loadout = {
       color:colorObj.name,
       size:s.selectedSize,
       req:s.currentItem.req,
-      variantId:selectedVariant ? selectedVariant.id : null
+      variantId:selectedVariant ? selectedVariant.id : null,
+      unitPrice:selectedVariant && selectedVariant.price != null ? Number(selectedVariant.price) : FREEKY.data.productPrices[s.currentItem.file]
     });
     FREEKY.storage.set('freeky_loadout', s.cart);
     s.cartMsg = 'FILE ADDED TO LOADOUT — STATUS UPDATED';
@@ -61,16 +62,40 @@ FREEKY.loadout = {
         <div class="cr-info">
           <div class="cr-name">${c.name}</div>
           <div class="cr-meta">FILE ${c.file} · ${c.color} · SIZE ${c.size} · ${c.req}</div>
-          <div class="cr-status">STATUS <span>READY</span></div>
+          <div class="cr-status">STATUS <span>READY</span> <strong class="cart-item-price" data-cart-price="${i}">${c.unitPrice != null ? `£${Number(c.unitPrice).toFixed(2)}` : 'PRICE PENDING'}</strong></div>
         </div>
         <button class="cr-remove" onclick="FREEKY.loadout.remove(${i})">✕</button>
       </div>
     `).join('') + `
       <div class="cart-total"><span>ALLOCATED EQUIPMENT</span><span>${s.cart.length} UNIT${s.cart.length===1?'':'S'}</span></div>
+      <div id="cartPricing"><div class="cart-total"><span>SUBTOTAL</span><span>CALCULATING…</span></div></div>
       <div class="cart-total"><span>DEPLOYMENT ROUTE</span><span>STANDARD — DIVISION TRANSPORT</span></div>
       <div class="cart-total"><span>DEPLOYMENT PACKAGE</span><span>READY FOR AUTHORIZATION</span></div>
       <button class="btn" style="width:100%; justify-content:center; margin-top:20px;" onclick="FREEKY.navigation.navTo('deploy')">Authorize Deployment →</button>
     `;
+    FREEKY.loadout.refreshCartPricing();
+  },
+
+  async refreshCartPricing(){
+    const s = FREEKY.state;
+    const pricing = document.getElementById('cartPricing');
+    if(!pricing || !s.cart.length) return;
+    try{
+      const variants = await Promise.all(s.cart.map(c => FREEKY.loadout.findVariant(c)));
+      if(pricing !== document.getElementById('cartPricing')) return;
+      const subtotal = variants.reduce((sum, variant, index) => {
+        const price = variant && variant.price != null ? Number(variant.price) : Number(s.cart[index].unitPrice || 0);
+        const label = document.querySelector(`[data-cart-price="${index}"]`);
+        if(label) label.textContent = `£${price.toFixed(2)}`;
+        if(variant && variant.price != null) s.cart[index].unitPrice = price;
+        return sum + price;
+      }, 0);
+      FREEKY.storage.set('freeky_loadout', s.cart);
+      const discount = s.appliedDiscount ? Math.min(s.appliedDiscount.type === 'percentage' ? subtotal * (Number(s.appliedDiscount.value)/100) : Number(s.appliedDiscount.value), subtotal) : 0;
+      pricing.innerHTML = `<div class="cart-total"><span>SUBTOTAL</span><span>£${subtotal.toFixed(2)}</span></div>${discount ? `<div class="cart-total"><span>DISCOUNT (${s.appliedDiscount.code})</span><span>-£${discount.toFixed(2)}</span></div><div class="cart-total"><span>TOTAL</span><span>£${(subtotal-discount).toFixed(2)}</span></div>` : ''}`;
+    }catch(e){
+      if(pricing === document.getElementById('cartPricing')) pricing.innerHTML = '<div class="cart-total"><span>SUBTOTAL</span><span>UNAVAILABLE</span></div>';
+    }
   },
 
   updateBadge(){
@@ -103,20 +128,18 @@ FREEKY.loadout = {
     const country = (document.getElementById('dCountry').value || '').trim();
     const phone = (document.getElementById('dPhone').value || '').trim();
     const email = (document.getElementById('dEmail').value || '').trim();
-    const card = (document.getElementById('dCard').value || '').trim();
 
     if(!agent || !address || !email){
       msg.textContent = 'AGENT NAME, DEPLOYMENT COORDINATES AND TRANSMISSION ADDRESS ARE REQUIRED.';
       msg.className = 'acct-msg err';
       return;
     }
-    if(!card){
-      msg.textContent = 'AUTHORIZATION CREDENTIALS REQUIRED.';
+    if(!FREEKY.account.hasSupabase() || !FREEKY.account.currentProfile){
+      msg.textContent = 'SIGN IN TO SUBMIT AN ORDER REQUEST.';
       msg.className = 'acct-msg err';
       return;
     }
-
-    msg.textContent = 'AUTHORIZING...';
+    msg.textContent = 'SUBMITTING ORDER REQUEST...';
     msg.className = 'acct-msg';
 
     if(FREEKY.account.hasSupabase() && FREEKY.account.currentProfile){

@@ -29,7 +29,6 @@ FREEKY.data.facilityModules = [
   {id:'database',     no:'17', name:'Database',          minLevel:99, status:'scaffold'},
   {id:'media',        no:'18', name:'Media Library',     minLevel:50, status:'scaffold'},
   {id:'flags',        no:'19', name:'Feature Flags',     minLevel:99, status:'live'},
-  {id:'logs',         no:'20', name:'System Logs',       minLevel:80, status:'live'},
   {id:'settings',     no:'21', name:'Site Settings',     minLevel:99, status:'live'},
   {id:'terminal',     no:'22', name:'Command Terminal',  minLevel:50, status:'live'}
 ];

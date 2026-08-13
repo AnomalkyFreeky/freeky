@@ -76,15 +76,16 @@ FREEKY.manifest = {
     }
   },
 
-  openCategory(key){
+  async openCategory(key){
     if(key === 'anomaly'){
       const notes = FREEKY.storage.get('freeky_notes', {});
       if(!notes.restricted){ notes.restricted = true; FREEKY.storage.set('freeky_notes', notes); }
     }
     const cat = FREEKY.data.categories.find(c=>c.key===key);
     const items = FREEKY.data.manifest.filter(m => m.key === key);
-    const body = document.getElementById('categoryBody');
-    body.innerHTML = `
+    const render = () => {
+      const body = document.getElementById('categoryBody');
+      body.innerHTML = `
       <div class="cat-head">
         <span class="cat-no glitch" data-text="${cat.no}">${cat.no}</span>
         <span class="cat-emoji">${cat.emoji}</span>
@@ -94,24 +95,32 @@ FREEKY.manifest = {
       <ul class="cat-style">${cat.style.map(s=>`<li>${s}</li>`).join('')}</ul>
       <div class="grid">${items.map(item => FREEKY.manifest.cardHtml(item)).join('')}</div>
     `;
+      FREEKY.ui.scheduleGlitchScan();
+    };
+    render();
     FREEKY.navigation.showScreen('category');
-    FREEKY.ui.scheduleGlitchScan();
+    await FREEKY.products.fetchCatalogItems(items.map(item => item.file));
+    if(FREEKY.state.currentScreen === 'category') render();
   },
 
   cardHtml(item){
-    const sealed = item.status === 'sealed';
+    const catalog = item.catalog;
+    const sealed = item.status === 'sealed' || (catalog && (!catalog.active || catalog.status !== 'available'));
+    const image = catalog && catalog.product_images && catalog.product_images[0];
+    const basePrice = catalog && catalog.price != null ? catalog.price : FREEKY.data.productPrices[item.file];
+    const price = basePrice != null ? `£${Number(basePrice).toFixed(2)}` : '';
     const finalKey = FREEKY.state.finalKey;
     return `
       <button class="card ${item.key===finalKey ? 'match':''} ${sealed?'sealed':''}" data-file="${item.file}" onclick="FREEKY.products.open('${item.file}')">
         <div class="thumb">
-          <div class="thumb-emoji">${FREEKY.manifest.categoryEmoji(item.key)}</div>
-          <div class="thumb-pending">IMG PENDING</div>
+          ${image ? `<img class="product-card-image" src="${image.image_url}" alt="${image.alt_text || item.name}">` : `<div class="thumb-emoji">${FREEKY.manifest.categoryEmoji(item.key)}</div><div class="thumb-pending">IMG PENDING</div>`}
           <div class="thumb-file">FILE ${item.file}</div>
           ${sealed ? '<div class="thumb-sealed">SEALED</div>' : ''}
         </div>
         <div class="card-body">
           <div class="file-no"><span class="glitch" data-text="FILE ${item.file}">FILE ${item.file}</span><span>${item.key===finalKey ? 'MATCH':''}</span></div>
           <div class="item-name">${item.name}</div>
+          ${price ? `<div class="card-price">${price}</div>` : ''}
           <div class="item-desc">${item.desc}</div>
           <div class="status-tag ${sealed?'is-sealed':'is-available'}">${sealed ? 'SEALED' : 'AVAILABLE'} — ${item.drop}</div>
           <div class="warn">${item.warn}</div>

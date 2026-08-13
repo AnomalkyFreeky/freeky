@@ -33,22 +33,18 @@ FREEKY.products = {
   },
 
   async fetchCatalogItem(code){
-    if(FREEKY.products._catalog[code]) return FREEKY.products._catalog[code];
-    if(!FREEKY.account || !FREEKY.account.hasSupabase()) return null;
-    try{
-      const { data, error } = await supabaseClient
-        .from('products')
-        .select('id, code, name, description, short_description, price, active, status, product_images(image_url, alt_text, sort_order, is_primary), product_variants(id, price, stock, active, sizes(name, sort_order), colors(name, hex))')
-        .eq('code', code)
-        .single();
-      if(error || !data) return null;
-      data.product_images = (data.product_images || []).sort((a,b) => (a.sort_order || 0) - (b.sort_order || 0));
-      FREEKY.products._catalog[code] = data;
-      return data;
-    }catch(e){
-      console.warn('FREÆŽ-KY: catalog record unavailable.', e);
-      return null;
-    }
+    const product = await FREEKY.catalog.getProduct(code);
+    if(product) FREEKY.products._catalog[code] = product;
+    return product;
+  },
+
+  async fetchCatalogItems(codes){
+    const products = await FREEKY.catalog.getProductCards(codes);
+    products.forEach(product => {
+        FREEKY.products._catalog[product.code] = product;
+        const item = FREEKY.data.manifest.find(m => m.file === product.code);
+        if(item) item.catalog = Object.assign(item.catalog || {}, product);
+    });
   },
 
   availableVariants(item){
@@ -110,7 +106,7 @@ FREEKY.products = {
     const displayName = catalog && catalog.name ? catalog.name : item.name;
     const description = catalog && (catalog.description || catalog.short_description) ? (catalog.description || catalog.short_description) : item.desc;
     const selectedVariant = FREEKY.products.selectedVariant();
-    const price = selectedVariant && selectedVariant.price != null ? selectedVariant.price : (catalog && catalog.price);
+    const price = selectedVariant && selectedVariant.price != null ? selectedVariant.price : (catalog && catalog.price != null ? catalog.price : FREEKY.data.productPrices[item.file]);
 
     const optionsBlock = sealed ? `
         <div class="sealed-notice">

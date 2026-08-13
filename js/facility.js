@@ -76,6 +76,9 @@ FREEKY.facility = {
     `;
 
     FREEKY.facility.renderNav();
+    // Logs are intentionally not a persistent Facility module. Re-entering
+    // Facility returns an operator to Command Center instead.
+    if(FREEKY.facility.activeModule === 'logs') FREEKY.facility.activeModule = 'command';
     FREEKY.facility.openModule(FREEKY.facility.activeModule);
     FREEKY.ui.scheduleGlitchScan();
   },
@@ -275,13 +278,9 @@ FREEKY.facility = {
       return;
     }
     try{
-      const [{ data: products, error }, { data: drops }] = await Promise.all([
-        supabaseClient.from('products').select('*').order('code', {ascending:true}),
-        supabaseClient.from('drops').select('*').order('drop_number', {ascending:true})
-      ]);
-      if(error) throw error;
-      FREEKY.facility.productsCache = products || [];
-      FREEKY.facility.dropsCache = drops || [];
+      const { products, drops } = await FREEKY.adminCatalog.listProductsAndDrops();
+      FREEKY.facility.productsCache = products;
+      FREEKY.facility.dropsCache = drops;
       FREEKY.facility.renderProductsList(content, '');
     }catch(e){
       content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">03 // PRODUCT CONTROL</div><p class="pf-empty">Archive unreachable.</p></div>`;
@@ -353,6 +352,7 @@ FREEKY.facility = {
         <div id="fcPMsg" class="acct-msg"></div>
         <div class="btn-row">
           <button class="btn" onclick="FREEKY.facility.saveProductFile(${p ? `'${p.id}'` : 'null'})">Save Changes</button>
+          ${p ? `<button class="btn ghost" onclick="FREEKY.facility.openProductImages('${p.id}')">Manage Images</button>` : ''}
         </div>
       </div>
     `;
@@ -377,15 +377,13 @@ FREEKY.facility = {
     }
     try{
       if(id){
-        const { error } = await supabaseClient.from('products').update(payload).eq('id', id);
-        if(error) throw error;
+        const saved = await FREEKY.adminCatalog.saveProduct(id, payload);
         const p = FREEKY.facility.productsCache.find(x=>x.id===id);
-        if(p) Object.assign(p, payload);
+        if(p) Object.assign(p, saved);
         FREEKY.facility.logAction('Edited product: ' + payload.name);
       } else {
         payload.slug = payload.name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-        const { data, error } = await supabaseClient.from('products').insert(payload).select().single();
-        if(error) throw error;
+        const data = await FREEKY.adminCatalog.saveProduct(null, payload);
         FREEKY.facility.productsCache.unshift(data);
         FREEKY.facility.logAction('Created product: ' + payload.name);
       }
@@ -397,6 +395,75 @@ FREEKY.facility = {
   },
 
   /* ===== 04 — INVENTORY (live, stock management) ===== */
+  /* ===== PRODUCT IMAGES (live; paste public Supabase Storage/CDN URLs) ===== */
+  async openProductImages(productId){
+    const content = document.getElementById('fcContent');
+    const product = FREEKY.facility.productsCache.find(p => p.id === productId);
+    content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">PRODUCT IMAGES</div><p class="pf-empty">Reading image records...</p></div>`;
+    try{
+      FREEKY.facility.imageCache = await FREEKY.adminCatalog.getImages(productId);
+      FREEKY.facility.renderProductImages(productId, product, content);
+    }catch(e){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">PRODUCT IMAGES</div><p class="pf-empty">Could not load image records.</p></div>`; }
+  },
+
+  renderProductImages(productId, product, content){
+    const rows = FREEKY.facility.imageCache.map(image => `
+      <div class="fc-image-row" data-image-id="${image.id}">
+        <img src="${image.image_url}" alt="" onerror="this.style.display='none'">
+        <div class="fc-image-fields">
+          <input class="fc-image-url" type="url" value="${(image.image_url||'').replace(/"/g,'&quot;')}" placeholder="Image URL">
+          <input class="fc-image-alt" type="text" value="${(image.alt_text||'').replace(/"/g,'&quot;')}" placeholder="Alt text (optional)">
+          <div class="btn-row"><input class="fc-image-order" type="number" min="0" value="${image.sort_order||0}" style="width:82px;"><label class="pf-toggle" style="margin:0;"><input class="fc-image-primary" type="radio" name="primaryImage" ${image.is_primary?'checked':''}><span>Primary</span></label><button class="btn ghost" onclick="FREEKY.facility.deleteProductImage('${productId}','${image.id}')">Remove</button></div>
+        </div>
+      </div>`).join('');
+    content.innerHTML = `<div class="fc-module"><button class="back-btn" onclick="FREEKY.facility.openProductFile('${productId}')">← Back to Product File</button><div class="fc-module-tag">IMAGES // ${product ? product.name : 'PRODUCT'}</div><p class="pf-empty" style="margin-bottom:16px;">Upload a photo directly to Supabase Storage or paste a public image URL. The primary image is shown first.</p><div id="fcImageRows">${rows || '<p class="pf-empty">No images assigned yet.</p>'}</div><div class="acct-field" style="margin-top:20px;"><label>UPLOAD IMAGE (JPG, PNG, WEBP OR AVIF — MAX 10 MB)</label><input id="fcUploadImageFile" type="file" accept="image/jpeg,image/png,image/webp,image/avif"></div><div class="acct-field"><label>ALT TEXT (OPTIONAL)</label><input id="fcNewImageAlt" type="text" placeholder="Archive Tee — front"></div><div class="btn-row" style="margin-bottom:16px;"><button class="btn ghost" onclick="FREEKY.facility.uploadProductImage('${productId}')">Upload to Supabase</button></div><div class="acct-field"><label>OR PASTE A PUBLIC IMAGE URL</label><input id="fcNewImageUrl" type="url" placeholder="https://…"></div><div id="fcImageMsg" class="acct-msg"></div><div class="btn-row"><button class="btn" onclick="FREEKY.facility.saveProductImages('${productId}')">Save Image Changes</button><button class="btn ghost" onclick="FREEKY.facility.addProductImage('${productId}')">+ Add URL</button></div></div>`;
+  },
+
+  async saveProductImages(productId){
+    const msg = document.getElementById('fcImageMsg');
+    const updates = Array.from(document.querySelectorAll('[data-image-id]')).map(row => ({ id:row.dataset.imageId, image_url:row.querySelector('.fc-image-url').value.trim(), alt_text:row.querySelector('.fc-image-alt').value.trim() || null, sort_order:parseInt(row.querySelector('.fc-image-order').value,10) || 0, is_primary:row.querySelector('.fc-image-primary').checked, updated_at:new Date().toISOString() }));
+    if(updates.some(row => !row.image_url)){ msg.textContent = 'EVERY IMAGE NEEDS A URL.'; msg.className = 'acct-msg err'; return; }
+    try{
+      await FREEKY.adminCatalog.saveImages(updates);
+      FREEKY.facility.logAction('Updated product images');
+      await FREEKY.facility.openProductImages(productId);
+      document.getElementById('fcImageMsg').textContent = 'IMAGE RECORDS SAVED.';
+      document.getElementById('fcImageMsg').className = 'acct-msg ok';
+    }catch(e){ msg.textContent = (e.message || 'COULD NOT SAVE IMAGES').toUpperCase(); msg.className = 'acct-msg err'; }
+  },
+
+  async addProductImage(productId){
+    const url = document.getElementById('fcNewImageUrl').value.trim();
+    const alt = document.getElementById('fcNewImageAlt').value.trim();
+    const msg = document.getElementById('fcImageMsg');
+    if(!url){ msg.textContent = 'ADD AN IMAGE URL FIRST.'; msg.className = 'acct-msg err'; return; }
+    try{
+      await FREEKY.adminCatalog.addImage(productId, url, alt, FREEKY.facility.imageCache.length, FREEKY.facility.imageCache.length === 0);
+      FREEKY.facility.logAction('Added product image'); await FREEKY.facility.openProductImages(productId);
+    }catch(e){ msg.textContent = (e.message || 'COULD NOT ADD IMAGE').toUpperCase(); msg.className = 'acct-msg err'; }
+  },
+
+  async uploadProductImage(productId){
+    const file = document.getElementById('fcUploadImageFile').files[0];
+    const alt = document.getElementById('fcNewImageAlt').value.trim();
+    const msg = document.getElementById('fcImageMsg');
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if(!file){ msg.textContent = 'SELECT AN IMAGE FILE FIRST.'; msg.className = 'acct-msg err'; return; }
+    if(!allowed.includes(file.type) || file.size > 10485760){ msg.textContent = 'USE JPG, PNG, WEBP OR AVIF UNDER 10 MB.'; msg.className = 'acct-msg err'; return; }
+    msg.textContent = 'UPLOADING IMAGE...'; msg.className = 'acct-msg';
+    try{
+      await FREEKY.adminCatalog.uploadImage(productId, file, alt, FREEKY.facility.imageCache.length, FREEKY.facility.imageCache.length === 0);
+      FREEKY.facility.logAction('Uploaded product image'); await FREEKY.facility.openProductImages(productId);
+    }catch(e){ msg.textContent = (e.message || 'COULD NOT UPLOAD IMAGE').toUpperCase(); msg.className = 'acct-msg err'; }
+  },
+
+  async deleteProductImage(productId, imageId){
+    try{
+      await FREEKY.adminCatalog.deleteImage(imageId);
+      FREEKY.facility.logAction('Removed product image'); await FREEKY.facility.openProductImages(productId);
+    }catch(e){ const msg = document.getElementById('fcImageMsg'); if(msg){ msg.textContent = 'COULD NOT REMOVE IMAGE.'; msg.className = 'acct-msg err'; } }
+  },
+
   async moduleInventory(content){
     content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Reading archive...</p></div>`;
     if(!FREEKY.account.hasSupabase()){
@@ -404,12 +471,7 @@ FREEKY.facility = {
       return;
     }
     try{
-      const { data, error } = await supabaseClient
-        .from('products')
-        .select('id, name, code, status, product_variants(stock)')
-        .order('code', {ascending:true});
-      if(error) throw error;
-      FREEKY.facility.productsCache = data || [];
+      FREEKY.facility.productsCache = await FREEKY.adminOperations.listInventory();
       FREEKY.facility.renderInventoryList(content);
     }catch(e){
       content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Archive unreachable.</p></div>`;
@@ -442,16 +504,7 @@ FREEKY.facility = {
     const content = document.getElementById('fcContent');
     content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">04 // INVENTORY</div><p class="pf-empty">Reading variants...</p></div>`;
     try{
-      const { data, error } = await supabaseClient
-        .from('product_variants')
-        .select('id, stock, sizes(name, sort_order), colors(name)')
-        .eq('product_id', productId);
-      if(error) throw error;
-      const variants = (data || []).sort((a,b) => {
-        const so = (a.sizes ? a.sizes.sort_order : 0) - (b.sizes ? b.sizes.sort_order : 0);
-        if(so !== 0) return so;
-        return (a.colors ? a.colors.name : '').localeCompare(b.colors ? b.colors.name : '');
-      });
+      const variants = await FREEKY.adminOperations.listVariants(productId);
       const p = FREEKY.facility.productsCache.find(x => x.id === productId);
       content.innerHTML = `
         <div class="fc-module">
@@ -481,9 +534,7 @@ FREEKY.facility = {
     const inputs = Array.from(document.querySelectorAll('.fc-stock-input'));
     msg.textContent = 'SAVING...'; msg.className = 'acct-msg';
     try{
-      await Promise.all(inputs.map(inp =>
-        supabaseClient.from('product_variants').update({ stock: parseInt(inp.value,10) || 0 }).eq('id', inp.dataset.variantId)
-      ));
+      await FREEKY.adminOperations.saveStock(inputs.map(inp => ({ id:inp.dataset.variantId, stock:parseInt(inp.value,10) || 0 })));
       msg.textContent = 'STOCK UPDATED.'; msg.className = 'acct-msg ok';
       FREEKY.facility.logAction('Updated stock levels for product ' + productId);
     }catch(e){
@@ -499,8 +550,7 @@ FREEKY.facility = {
       return;
     }
     try{
-      const { data, error } = await supabaseClient.from('orders').select('*').order('created_at', {ascending:false});
-      FREEKY.facility.ordersCache = data || [];
+      FREEKY.facility.ordersCache = await FREEKY.adminOperations.listOrders();
       FREEKY.facility.renderDeploymentsList(content);
     }catch(e){
       content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">05 // DEPLOYMENTS</div><p class="pf-empty">Archive unreachable. This module needs an admin-bypass RLS policy on orders — see the summary for the exact SQL.</p></div>`;
@@ -531,8 +581,8 @@ FREEKY.facility = {
 
   async updateOrderStatus(orderId, status){
     try{
-      const { error } = await supabaseClient.from('orders').update({ status }).eq('id', orderId);
-      if(!error){
+      await FREEKY.adminOperations.updateOrderStatus(orderId, status);
+      {
         const o = FREEKY.facility.ordersCache.find(x=>x.id===orderId);
         if(o) o.status = status;
         FREEKY.facility.logAction('Updated deployment status: ' + orderId + ' → ' + status);
@@ -560,16 +610,9 @@ FREEKY.facility = {
       return;
     }
     try{
-      const [{ data: drops, error }, { data: products }] = await Promise.all([
-        supabaseClient.from('drops').select('*').order('drop_number', {ascending:true}),
-        supabaseClient.from('products').select('id, drop_id')
-      ]);
-      if(error) throw error;
-      FREEKY.facility.dropsCache = drops || [];
-      FREEKY.facility._dropProductCounts = (products || []).reduce((acc,p) => {
-        if(p.drop_id) acc[p.drop_id] = (acc[p.drop_id]||0) + 1;
-        return acc;
-      }, {});
+      const { drops, counts } = await FREEKY.adminContent.listDropsWithCounts();
+      FREEKY.facility.dropsCache = drops;
+      FREEKY.facility._dropProductCounts = counts;
       FREEKY.facility.renderDropsList(content);
     }catch(e){
       content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">06 // DROP MANAGEMENT</div><p class="pf-empty">Archive unreachable.</p></div>`;
@@ -633,15 +676,13 @@ FREEKY.facility = {
     }
     try{
       if(id){
-        const { error } = await supabaseClient.from('drops').update(payload).eq('id', id);
-        if(error) throw error;
+        const saved = await FREEKY.adminContent.saveDrop(id, payload);
         const d = FREEKY.facility.dropsCache.find(x=>x.id===id);
-        if(d) Object.assign(d, payload);
+        if(d) Object.assign(d, saved);
         FREEKY.facility.logAction('Edited drop: ' + payload.name);
       } else {
         payload.slug = payload.name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
-        const { data, error } = await supabaseClient.from('drops').insert(payload).select().single();
-        if(error) throw error;
+        const data = await FREEKY.adminContent.saveDrop(null, payload);
         FREEKY.facility.dropsCache.push(data);
         FREEKY.facility.logAction('Created drop: ' + payload.name);
       }
@@ -753,9 +794,7 @@ FREEKY.facility = {
       return;
     }
     try{
-      const { data, error } = await supabaseClient.from('discounts').select('*').order('created_at', {ascending:false});
-      if(error) throw error;
-      FREEKY.facility.discountsCache = data || [];
+      FREEKY.facility.discountsCache = await FREEKY.adminContent.listDiscounts();
       FREEKY.facility.renderDiscountsList(content);
     }catch(e){
       content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">07 // DISCOUNT SYSTEM</div><p class="pf-empty">Archive unreachable. Have you run database/003_new_tables.sql yet?</p></div>`;
@@ -825,14 +864,12 @@ FREEKY.facility = {
     }
     try{
       if(id){
-        const { error } = await supabaseClient.from('discounts').update(payload).eq('id', id);
-        if(error) throw error;
+        const saved = await FREEKY.adminContent.saveDiscount(id, payload);
         const d = FREEKY.facility.discountsCache.find(x=>x.id===id);
-        if(d) Object.assign(d, payload);
+        if(d) Object.assign(d, saved);
         FREEKY.facility.logAction('Edited discount: ' + payload.code);
       } else {
-        const { data, error } = await supabaseClient.from('discounts').insert(payload).select().single();
-        if(error) throw error;
+        const data = await FREEKY.adminContent.saveDiscount(null, payload);
         FREEKY.facility.discountsCache.unshift(data);
         FREEKY.facility.logAction('Created discount: ' + payload.code);
       }
@@ -851,9 +888,7 @@ FREEKY.facility = {
       return;
     }
     try{
-      const { data, error } = await supabaseClient.from('homepage_content').select('*').order('sort_order', {ascending:true});
-      if(error) throw error;
-      FREEKY.facility.homepageCache = data || [];
+      FREEKY.facility.homepageCache = await FREEKY.adminContent.listHomepageBlocks();
       FREEKY.facility.renderHomepageList(content);
     }catch(e){
       content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">08 // HOMEPAGE CONTROL</div><p class="pf-empty">Archive unreachable. Have you run database/003_new_tables.sql yet?</p></div>`;
@@ -918,14 +953,12 @@ FREEKY.facility = {
     }
     try{
       if(id){
-        const { error } = await supabaseClient.from('homepage_content').update(payload).eq('id', id);
-        if(error) throw error;
+        const saved = await FREEKY.adminContent.saveHomepageBlock(id, payload);
         const b = FREEKY.facility.homepageCache.find(x=>x.id===id);
-        if(b) Object.assign(b, payload);
+        if(b) Object.assign(b, saved);
         FREEKY.facility.logAction('Edited homepage block: ' + payload.block_key);
       } else {
-        const { data, error } = await supabaseClient.from('homepage_content').insert(payload).select().single();
-        if(error) throw error;
+        const data = await FREEKY.adminContent.saveHomepageBlock(null, payload);
         FREEKY.facility.homepageCache.push(data);
         FREEKY.facility.logAction('Created homepage block: ' + payload.block_key);
       }
@@ -944,9 +977,7 @@ FREEKY.facility = {
       return;
     }
     try{
-      const { data, error } = await supabaseClient.from('site_settings').select('*').order('key', {ascending:true});
-      if(error) throw error;
-      FREEKY.facility.settingsCache = data || [];
+      FREEKY.facility.settingsCache = await FREEKY.adminContent.listSettings();
       FREEKY.facility.renderSettingsList(content);
     }catch(e){
       content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">21 // SITE SETTINGS</div><p class="pf-empty">Archive unreachable. Have you run database/003_new_tables.sql yet?</p></div>`;
@@ -987,9 +1018,7 @@ FREEKY.facility = {
     msg.textContent = 'SAVING...'; msg.className = 'acct-msg';
     try{
       const rows = inputs.map(inp => ({ key: inp.dataset.key, value: inp.value, updated_at: new Date().toISOString() }));
-      const { error } = await supabaseClient.from('site_settings').upsert(rows, { onConflict:'key' });
-      if(error) throw error;
-      FREEKY.facility.settingsCache = rows;
+      FREEKY.facility.settingsCache = await FREEKY.adminContent.saveSettings(rows);
       msg.textContent = 'SETTINGS SAVED.'; msg.className = 'acct-msg ok';
       FREEKY.facility.logAction('Updated site settings');
     }catch(e){
@@ -1002,8 +1031,7 @@ FREEKY.facility = {
     const key = keyInput.value.trim().toLowerCase().replace(/[^a-z0-9_]+/g,'_');
     if(!key) return;
     try{
-      const { data, error } = await supabaseClient.from('site_settings').insert({ key, value: '' }).select().single();
-      if(error) throw error;
+      const data = await FREEKY.adminContent.addSetting(key);
       FREEKY.facility.settingsCache.push(data);
       FREEKY.facility.logAction('Added site setting: ' + key);
       FREEKY.facility.renderSettingsList(document.getElementById('fcContent'));
@@ -1047,6 +1075,15 @@ FREEKY.facility = {
   },
 
   /* ===== 20 — SYSTEM LOGS (live, local) ===== */
+  openLogs(){
+    if(FREEKY.facility.currentLevel() < 80){
+      FREEKY.facility.termPrint('ACCESS DENIED: LOGS REQUIRE CLEARANCE LEVEL 80.');
+      return;
+    }
+    FREEKY.facility.activeModule = 'logs';
+    FREEKY.facility.moduleLogs(document.getElementById('fcContent'));
+  },
+
   moduleLogs(content){
     const log = FREEKY.storage.get('freeky_facility_logs', []);
     content.innerHTML = `
@@ -1103,6 +1140,9 @@ FREEKY.facility = {
     } else if(base === '/deployments'){
       FREEKY.facility.termPrint('Opening Deployments...');
       FREEKY.facility.openModule('deployments');
+    } else if(base === '/logs'){
+      FREEKY.facility.termPrint('Opening private local system log...');
+      FREEKY.facility.openLogs();
     } else if(base === '/archive'){
       FREEKY.facility.termPrint('Redirecting to the Dossier archive...');
       setTimeout(() => FREEKY.navigation.navTo('dossier'), 400);

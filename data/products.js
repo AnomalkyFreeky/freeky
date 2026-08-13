@@ -21,6 +21,12 @@ FREEKY.data.sizeOptions = ["S","M","L","XL","XXL"];
 
 FREEKY.data.imageSlides = ["FRONT","BACK","DETAIL"];
 
+// Visible fallback until the live Supabase catalog responds.
+FREEKY.data.productPrices = {
+  "FK-OD-001":35, "O-001":85, "N-001":45,
+  "E-001":95, "R-001":140, "P-001":160
+};
+
 FREEKY.data.manifest = [
   {file:"FK-OD-001",name:"Archive Tee",desc:"The basic point of entry into FREƎ-KY. A person before classification. Clean, wearable, streetwear-focused.",warn:"HANDLE: STANDARD",req:"RQ-OD-001",key:"offduty",status:"available",drop:"FILE 001 — FIRST ACCESS"},
   {file:"O-001",name:"Mission Hoodie",desc:"The main streetwear piece. Oversized fit, heavy fabric, structured hood, subtle archive markings.",warn:"HANDLE: STANDARD",req:"RQ-O-001",key:"operative",status:"available",drop:"FILE 001 — FIRST ACCESS"},

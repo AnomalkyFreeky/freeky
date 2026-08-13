@@ -32,7 +32,6 @@
     <span class="sb-label">NAVIGATION</span>
     <div class="sb-nav">
       <button class="sb-link" id="nav-gate" onclick="FREEKY.navigation.navTo('gate')"><span>ACCESS GATE</span><span class="no">000</span></button>
-      <button class="sb-link" id="nav-quiz" onclick="FREEKY.navigation.navTo('quiz')"><span>EVALUATION</span><span class="no">EVL</span></button>
       <button class="sb-link" id="nav-account" onclick="FREEKY.navigation.navTo('account')"><span>YOUR FILE</span><span class="no" id="accountBadge">—</span></button>
       <button class="sb-link" id="nav-result" onclick="FREEKY.navigation.navTo('result')"><span>LOADOUT</span><span class="no">—</span></button>
       <button class="sb-link" id="nav-dossier" onclick="FREEKY.navigation.navTo('dossier')"><span class="glitch" data-text="DOSSIER">DOSSIER</span><span class="no">D-00</span></button>
@@ -203,18 +202,13 @@
     </div>
 
     <div class="file-card" style="margin-top:20px;">
-      <div class="corner-tag">RESOURCE ALLOCATION</div>
-      <div class="acct-field"><label>AUTHORIZATION CREDENTIALS</label><input type="text" id="dCard" placeholder="Card number"></div>
-      <div style="display:flex; gap:14px;">
-        <div class="acct-field" style="flex:1;"><label>EXPIRY</label><input type="text" id="dExp" placeholder="MM/YY"></div>
-        <div class="acct-field" style="flex:1;"><label>SECURITY CODE</label><input type="text" id="dCvc" placeholder="CVC"></div>
-      </div>
-      <div class="acct-field"><label>VERIFICATION COORDINATES</label><input type="text" id="dBilling" placeholder="Billing address (leave blank to match deployment coordinates)"></div>
+      <div class="corner-tag">PAYMENT STATUS</div>
+      <p class="sub" style="margin:0;">Online payment is not enabled yet. This creates a pending order only; no card or payment details are collected.</p>
     </div>
 
     <div id="deployMsg" class="acct-msg" style="margin-top:6px;"></div>
     <div class="btn-row" style="margin-top:16px;">
-      <button class="btn" onclick="FREEKY.loadout.deploy()">Deploy Equipment →</button>
+      <button class="btn" onclick="FREEKY.loadout.deploy()">Submit Order Request →</button>
       <button class="btn ghost" onclick="FREEKY.navigation.showScreen('result')">Return to Loadout Terminal</button>
     </div>
     <footer class="f" style="margin-top:60px;">
@@ -227,11 +221,11 @@
 <!-- SCREEN 3D: EQUIPMENT DEPLOYED (confirmation) -->
 <section class="screen" id="deployed">
   <div class="result-wrap">
-    <div class="stamp glitch" data-text="DEPLOYED" style="border-color:var(--amber); color:var(--amber); font-size:22px; padding:10px 24px;">DEPLOYED</div>
+    <div class="stamp glitch" data-text="REQUEST RECEIVED" style="border-color:var(--amber); color:var(--amber); font-size:22px; padding:10px 24px;">REQUEST RECEIVED</div>
     <div class="file-card">
-      <div class="corner-tag glitch" data-text="EQUIPMENT DEPLOYED">EQUIPMENT DEPLOYED</div>
-      <p class="sub" style="font-size:15px; color:var(--off); margin-bottom:6px;">Your loadout has been authorized.</p>
-      <p class="sub" style="margin-bottom:22px;">Division 17 has transmitted your equipment for deployment.</p>
+      <div class="corner-tag glitch" data-text="ORDER REQUEST RECEIVED">ORDER REQUEST RECEIVED</div>
+      <p class="sub" style="font-size:15px; color:var(--off); margin-bottom:6px;">Your loadout request has been recorded.</p>
+      <p class="sub" style="margin-bottom:22px;">We will contact you when payment and shipping are available.</p>
       <div class="item-recovered"><span>ESTIMATED DEPLOYMENT WINDOW</span><span class="val">3–5 OPERATIONAL DAYS</span></div>
       <div class="item-recovered" style="margin-top:10px;"><span>STATUS</span><span class="val glitch" data-text="TRANSMISSION COMPLETE">TRANSMISSION COMPLETE</span></div>
       <div class="btn-row" style="margin-top:26px;">
@@ -320,12 +314,18 @@
 <script src="js/quiz.js"></script>
 <script src="js/classification.js"></script>
 <script src="js/manifest.js"></script>
+<script src="js/services/catalog-service.js"></script>
+<script src="js/services/admin-catalog-service.js"></script>
+<script src="js/services/admin-operations-service.js"></script>
+<script src="js/services/admin-content-service.js"></script>
 <script src="js/products.js"></script>
 <script src="js/loadout.js"></script>
 <script src="js/account.js"></script>
 <script src="js/dossier.js"></script>
 <script src="js/personnel.js"></script>
 <script src="js/facility.js"></script>
+<script src="js/facility/operations.js"></script>
+<script src="js/facility/private-logs.js"></script>
 <script src="js/site-settings.js"></script>
 <script src="js/app.js"></script>
 </body>

@@ -138,6 +138,7 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
 .cart-row .cr-remove:hover{border-color:var(--red); color:var(--red);}
 .cart-row .cr-status{font-size:10px; letter-spacing:.1em; color:var(--dim); margin-top:6px;}
 .cart-row .cr-status span{color:var(--amber);}
+.cart-row .cr-status .cart-item-price{float:right; color:var(--off); font-family:var(--stencil); font-size:14px; letter-spacing:.04em;}
 .cart-empty{font-family:var(--narrow); font-size:13px; color:var(--dim); padding:8px 0 4px;}
 .loadout-empty{border:1px dashed var(--line); padding:22px 20px; text-align:left;}
 .loadout-empty .le-tag{font-size:13px; letter-spacing:.12em; color:var(--red); margin-bottom:10px; font-family:var(--stencil);}
@@ -206,6 +207,7 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
 .card .thumb .thumb-emoji{
   position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:40px; opacity:.16;
 }
+.card .thumb .product-card-image{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:1;}
 .card .thumb .thumb-file{position:absolute; bottom:8px; left:9px; font-size:10px; color:var(--dim); letter-spacing:.08em; z-index:2;}
 .card .thumb .thumb-pending{
   position:absolute; top:8px; right:9px; font-size:8px; color:var(--red); border:1px solid var(--red); padding:2px 6px;
@@ -214,6 +216,7 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
 .card .card-body{padding:18px 18px 20px;}
 .card .file-no{font-size:10px; color:var(--dim); letter-spacing:.1em; margin-bottom:12px; display:flex; justify-content:space-between;}
 .card .item-name{font-family:var(--stencil); font-weight:700; font-size:19px; text-transform:uppercase; margin-bottom:8px; letter-spacing:.01em;}
+.card .card-price{font-family:var(--stencil); font-size:17px; color:var(--amber); margin:-2px 0 10px; letter-spacing:.04em;}
 .card .item-desc{font-family:var(--narrow); font-size:13px; color:var(--dim); line-height:1.55; margin-bottom:16px; min-height:56px;}
 .card .warn{font-size:9px; color:var(--red); letter-spacing:.1em; border:1px solid var(--red); display:inline-block; padding:2px 6px; margin-bottom:10px;}
 .card .status-tag{font-size:9px; letter-spacing:.08em; margin-bottom:10px; display:block;}
@@ -287,6 +290,10 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
 .item-info .item-title{font-family:var(--stencil); font-weight:900; font-size:clamp(24px,4vw,32px); text-transform:uppercase; margin-bottom:10px;}
 .item-info .item-full-desc{font-family:var(--narrow); font-size:14px; line-height:1.7; color:var(--dim); margin-bottom:22px;}
 .item-price{font-family:var(--stencil); font-size:22px; color:var(--amber); letter-spacing:.04em; margin:-8px 0 22px;}
+.fc-image-row{display:flex; gap:14px; border:1px solid var(--line); padding:12px; margin-bottom:12px; align-items:flex-start;}
+.fc-image-row img{width:76px; height:76px; object-fit:cover; border:1px solid var(--line); background:var(--void);}
+.fc-image-fields{display:flex; flex:1; flex-direction:column; gap:8px; min-width:0;}
+.fc-image-fields input{width:100%; background:var(--void); border:1px solid var(--line); color:var(--off); font-family:var(--mono); font-size:12px; padding:8px 10px;}
 .opt-label{font-size:10px; letter-spacing:.14em; color:var(--dim); margin-bottom:10px; display:block;}
 .color-row{display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;}
 .swatch{width:30px; height:30px; border-radius:50%; border:2px solid var(--line); cursor:pointer; position:relative;}

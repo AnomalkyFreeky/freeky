@@ -10,6 +10,11 @@ $$;
 revoke all on function public.facility_role_in(text[]) from public;
 grant execute on function public.facility_role_in(text[]) to authenticated;
 
+-- RLS policies do not grant PostgreSQL table privileges by themselves.
+grant select, update on public.profiles to authenticated;
+grant select, update on public.orders to authenticated;
+grant select on public.order_items to authenticated;
+
 drop policy if exists "Facility staff can view all profiles" on public.profiles;
 create policy "Facility staff can view all profiles" on public.profiles for select to authenticated
 using (public.facility_role_in(array['admin','director','staff','moderator']));

@@ -14,7 +14,7 @@ Object.assign(FREEKY.facility, {
       FREEKY.facility.productsCache = products;
       FREEKY.facility.dropsCache = drops;
       FREEKY.facility.renderProductsList(content, '');
-    }catch(e){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">03 // PRODUCT CONTROL</div><p class="pf-empty">Archive unreachable.</p></div>`; }
+    }catch(e){ content.innerHTML = `<div class="fc-module"><div class="fc-module-tag">03 // PRODUCT CONTROL</div>${FREEKY.facility.archiveError(e)}</div>`; }
   },
 
   renderProductsList(content, filter){

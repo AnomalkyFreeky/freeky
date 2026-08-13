@@ -109,6 +109,8 @@ FREEKY.products = {
     const image = images[s.galleryIndex % Math.max(images.length, 1)];
     const displayName = catalog && catalog.name ? catalog.name : item.name;
     const description = catalog && (catalog.description || catalog.short_description) ? (catalog.description || catalog.short_description) : item.desc;
+    const selectedVariant = FREEKY.products.selectedVariant();
+    const price = selectedVariant && selectedVariant.price != null ? selectedVariant.price : (catalog && catalog.price);
 
     const optionsBlock = sealed ? `
         <div class="sealed-notice">
@@ -145,6 +147,7 @@ FREEKY.products = {
         <div class="file-no-lg glitch" data-text="FILE ${item.file} · ${item.req}">FILE ${item.file} · ${item.req}</div>
         <div class="item-title">${displayName}</div>
         <p class="item-full-desc">${description}</p>
+        ${price != null ? `<div class="item-price">£${Number(price).toFixed(2)}</div>` : ''}
         ${optionsBlock}
       </div>
     `;

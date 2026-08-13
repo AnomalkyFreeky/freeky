@@ -286,6 +286,7 @@ footer.f .ek{color:var(--off); font-family:var(--stencil);}
 .item-info .file-no-lg{font-size:11px; color:var(--dim); letter-spacing:.1em; margin-bottom:10px;}
 .item-info .item-title{font-family:var(--stencil); font-weight:900; font-size:clamp(24px,4vw,32px); text-transform:uppercase; margin-bottom:10px;}
 .item-info .item-full-desc{font-family:var(--narrow); font-size:14px; line-height:1.7; color:var(--dim); margin-bottom:22px;}
+.item-price{font-family:var(--stencil); font-size:22px; color:var(--amber); letter-spacing:.04em; margin:-8px 0 22px;}
 .opt-label{font-size:10px; letter-spacing:.14em; color:var(--dim); margin-bottom:10px; display:block;}
 .color-row{display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap;}
 .swatch{width:30px; height:30px; border-radius:50%; border:2px solid var(--line); cursor:pointer; position:relative;}

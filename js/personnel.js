@@ -69,13 +69,14 @@ FREEKY.personnel = {
   },
   sectionGroup(group, bodies){
     const sections = FREEKY.personnel.sectionMeta.filter(section => section.group === group);
-    const active = sections.find(section => section.no === FREEKY.personnel.activeSection) || sections[0];
-    return `<section class="pf-group"><div class="pf-group-title">${group}</div><div class="pf-card-grid">${sections.map(section => FREEKY.personnel.sectionCard(section)).join('')}</div><div class="pf-detail" id="pfsec-${active.no}"><div class="pf-detail-head"><span class="pf-no glitch" data-text="${active.no}">${active.no}</span><span>${active.icon} // ${active.title}</span></div><div class="pf-body" id="pfbody-${active.no}">${bodies[active.no]}</div></div></section>`;
+    const active = sections.find(section => section.no === FREEKY.personnel.activeSection);
+    const detail = active ? `<div class="pf-detail" id="pfsec-${active.no}"><div class="pf-detail-head"><span class="pf-no glitch" data-text="${active.no}">${active.no}</span><span>${active.icon} // ${active.title}</span></div><div class="pf-body" id="pfbody-${active.no}">${bodies[active.no]}</div></div>` : '';
+    return `<section class="pf-group"><div class="pf-group-title">${group}</div><div class="pf-card-grid">${sections.map(section => FREEKY.personnel.sectionCard(section)).join('')}</div>${detail}</section>`;
   },
   selectSection(no){
-    FREEKY.personnel.activeSection = no;
+    FREEKY.personnel.activeSection = FREEKY.personnel.activeSection === no ? null : no;
     FREEKY.personnel.render();
-    const detail = document.getElementById('pfsec-' + no);
+    const detail = FREEKY.personnel.activeSection && document.getElementById('pfsec-' + no);
     if(detail) detail.scrollIntoView({behavior:'smooth', block:'nearest'});
   },
 

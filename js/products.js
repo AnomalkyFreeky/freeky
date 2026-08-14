@@ -28,6 +28,8 @@ FREEKY.products = {
       item.catalog = catalogItem;
       const colors = FREEKY.products.colorOptions(item);
       s.selectedColor = colors.length ? colors[0].hex : null;
+      const sizes = s.selectedColor ? FREEKY.products.sizeOptions(item, s.selectedColor) : [];
+      s.selectedSize = sizes.length ? sizes[0].name : null;
     }
     FREEKY.products.render();
   },
@@ -50,7 +52,7 @@ FREEKY.products = {
   availableVariants(item){
     const catalog = item && item.catalog;
     if(!catalog || !catalog.active || catalog.status !== 'available') return [];
-    return (catalog.product_variants || []).filter(v => v.active && Number(v.stock) > 0 && v.sizes && v.colors);
+    return (catalog.product_variants || []).filter(v => v.active !== false && Number(v.stock) > 0 && v.sizes && v.colors);
   },
 
   colorOptions(item){

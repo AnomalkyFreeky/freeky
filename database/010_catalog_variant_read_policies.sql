@@ -9,7 +9,7 @@ grant select on public.product_images to anon, authenticated;
 
 drop policy if exists "Public can view active product variants" on public.product_variants;
 create policy "Public can view active product variants" on public.product_variants for select
-using (active = true);
+using (coalesce(active, true) = true);
 
 drop policy if exists "Public can view sizes" on public.sizes;
 create policy "Public can view sizes" on public.sizes for select using (true);

@@ -27,25 +27,25 @@ FREEKY.personnel = {
     crt: true, glitch: true, animations: true, reducedMotion: false, sound: false
   }),
 
-  openSections: {}, // {sectionNo: true/false} — collapsed by default
+  activeSection: '01', // one focused record at a time keeps the dossier compact
 
   sectionMeta: [
-    {no:'01', title:'IDENTITY'},
-    {no:'02', title:'CLASSIFICATION'},
-    {no:'03', title:'RECOVERED EQUIPMENT'},
-    {no:'04', title:'DEPLOYMENT HISTORY'},
-    {no:'05', title:'DEPLOYMENT ADDRESS'},
-    {no:'06', title:'ACCOUNT'},
-    {no:'07', title:'INTERFACE'},
-    {no:'08', title:'ARCHIVE NOTES'},
-    {no:'09', title:'PERSONAL IRREGULARITIES'},
-    {no:'10', title:'OBSERVATION'},
-    {no:'11', title:'SYSTEM CONFIDENCE'},
-    {no:'12', title:'FILE STATUS'},
-    {no:'13', title:'INCIDENT HISTORY'},
-    {no:'14', title:'EMERGENCY CONTACT'},
-    {no:'15', title:'PERMISSIONS'},
-    {no:'16', title:'REPORT YOURSELF'}
+    {no:'01', title:'IDENTITY', group:'PERSONNEL RECORD', icon:'◎'},
+    {no:'02', title:'CLASSIFICATION', group:'PERSONNEL RECORD', icon:'◈'},
+    {no:'12', title:'FILE STATUS', group:'PERSONNEL RECORD', icon:'▣'},
+    {no:'10', title:'OBSERVATION', group:'PERSONNEL RECORD', icon:'◉'},
+    {no:'03', title:'RECOVERED EQUIPMENT', group:'LOADOUT & DEPLOYMENT', icon:'▤'},
+    {no:'04', title:'DEPLOYMENT HISTORY', group:'LOADOUT & DEPLOYMENT', icon:'↗'},
+    {no:'05', title:'DEPLOYMENT ADDRESS', group:'LOADOUT & DEPLOYMENT', icon:'⌂'},
+    {no:'14', title:'EMERGENCY CONTACT', group:'LOADOUT & DEPLOYMENT', icon:'✚'},
+    {no:'06', title:'ACCOUNT', group:'ACCOUNT & INTERFACE', icon:'◌'},
+    {no:'07', title:'INTERFACE', group:'ACCOUNT & INTERFACE', icon:'⚙'},
+    {no:'15', title:'PERMISSIONS', group:'ACCOUNT & INTERFACE', icon:'⌘'},
+    {no:'16', title:'REPORT YOURSELF', group:'ACCOUNT & INTERFACE', icon:'!'},
+    {no:'08', title:'ARCHIVE NOTES', group:'ARCHIVE & SIGNAL', icon:'✦'},
+    {no:'09', title:'PERSONAL IRREGULARITIES', group:'ARCHIVE & SIGNAL', icon:'≈'},
+    {no:'11', title:'SYSTEM CONFIDENCE', group:'ARCHIVE & SIGNAL', icon:'◫'},
+    {no:'13', title:'INCIDENT HISTORY', group:'ARCHIVE & SIGNAL', icon:'△'}
   ],
 
   mapOrderStatus(status){
@@ -58,26 +58,25 @@ FREEKY.personnel = {
     return map[status] || (status ? status.charAt(0).toUpperCase()+status.slice(1) : "Unknown");
   },
 
-  /* ===== ACCORDION MECHANICS (same pattern as js/dossier.js) ===== */
-  accordionItem(no, title, bodyHtml){
-    const isOpen = !!FREEKY.personnel.openSections[no];
-    return `
-      <div class="pf-section ${isOpen ? 'open' : ''}" id="pfsec-${no}">
-        <button class="pf-head" onclick="FREEKY.personnel.toggleSection('${no}')">
-          <span class="pf-no glitch" data-text="${no}">${no}</span>
-          <span class="pf-title">${title}</span>
-          <span class="pf-toggle-icon">${isOpen ? '−' : '+'}</span>
-        </button>
-        <div class="pf-body" id="pfbody-${no}">${bodyHtml}</div>
-      </div>
-    `;
+  sectionCard(section){
+    const active = section.no === FREEKY.personnel.activeSection;
+    return `<button class="pf-card ${active ? 'active' : ''}" onclick="FREEKY.personnel.selectSection('${section.no}')" aria-pressed="${active}">
+      <span class="pf-card-icon" aria-hidden="true">${section.icon}</span>
+      <span class="pf-card-no">${section.no}</span>
+      <span class="pf-card-title">${section.title}</span>
+      <span class="pf-card-open">${active ? 'OPEN' : 'VIEW'}</span>
+    </button>`;
   },
-  toggleSection(no){
-    FREEKY.personnel.openSections[no] = !FREEKY.personnel.openSections[no];
-    const el = document.getElementById('pfsec-' + no);
-    if(el) el.classList.toggle('open');
-    const icon = el ? el.querySelector('.pf-toggle-icon') : null;
-    if(icon) icon.textContent = FREEKY.personnel.openSections[no] ? '−' : '+';
+  sectionGroup(group, bodies){
+    const sections = FREEKY.personnel.sectionMeta.filter(section => section.group === group);
+    const active = sections.find(section => section.no === FREEKY.personnel.activeSection) || sections[0];
+    return `<section class="pf-group"><div class="pf-group-title">${group}</div><div class="pf-card-grid">${sections.map(section => FREEKY.personnel.sectionCard(section)).join('')}</div><div class="pf-detail" id="pfsec-${active.no}"><div class="pf-detail-head"><span class="pf-no glitch" data-text="${active.no}">${active.no}</span><span>${active.icon} // ${active.title}</span></div><div class="pf-body" id="pfbody-${active.no}">${bodies[active.no]}</div></div></section>`;
+  },
+  selectSection(no){
+    FREEKY.personnel.activeSection = no;
+    FREEKY.personnel.render();
+    const detail = document.getElementById('pfsec-' + no);
+    if(detail) detail.scrollIntoView({behavior:'smooth', block:'nearest'});
   },
 
   /* ===== INCIDENT LOG + ARCHIVE NOTES (real, local, lightweight) ===== */
@@ -118,7 +117,8 @@ FREEKY.personnel = {
       '16': FREEKY.personnel.section16Report()
     };
 
-    box.innerHTML = FREEKY.personnel.sectionMeta.map(s => FREEKY.personnel.accordionItem(s.no, s.title, bodies[s.no])).join('');
+    box.innerHTML = ['PERSONNEL RECORD','LOADOUT & DEPLOYMENT','ACCOUNT & INTERFACE','ARCHIVE & SIGNAL']
+      .map(group => FREEKY.personnel.sectionGroup(group, bodies)).join('');
 
     FREEKY.ui.scheduleGlitchScan();
     FREEKY.personnel.loadDeployments();

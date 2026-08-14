@@ -18,6 +18,8 @@
   .topbar{padding:14px 18px;}
   .id-block, .file-card{padding:26px 22px;}
   .item-info{padding:26px 22px;}
+  .pf-card-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .pf-card{min-height:126px;}
 }
 
 @media (max-width:760px){

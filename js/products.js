@@ -97,7 +97,7 @@ FREEKY.products = {
     const catalog = item.catalog;
     const emoji = FREEKY.manifest.categoryEmoji(item.key);
     const variants = FREEKY.products.availableVariants(item);
-    const sealed = item.status === 'sealed' || (catalog && (!catalog.active || catalog.status !== 'available' || !variants.length));
+    const sealed = catalog ? (!catalog.active || catalog.status !== 'available' || !variants.length) : item.status === 'sealed';
     const colors = FREEKY.products.colorOptions(item);
     const colorObj = colors.find(c => c.hex === s.selectedColor) || colors[0] || {name:'UNAVAILABLE', hex:'#2c2c2e'};
     const sizes = FREEKY.products.sizeOptions(item, colorObj.hex);

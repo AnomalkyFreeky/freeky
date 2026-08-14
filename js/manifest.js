@@ -105,7 +105,7 @@ FREEKY.manifest = {
 
   cardHtml(item){
     const catalog = item.catalog;
-    const sealed = item.status === 'sealed' || (catalog && (!catalog.active || catalog.status !== 'available'));
+    const sealed = catalog ? (!catalog.active || catalog.status !== 'available') : item.status === 'sealed';
     const image = catalog && catalog.product_images && catalog.product_images[0];
     const basePrice = catalog && catalog.price != null ? catalog.price : FREEKY.data.productPrices[item.file];
     const price = basePrice != null ? `£${Number(basePrice).toFixed(2)}` : '';
